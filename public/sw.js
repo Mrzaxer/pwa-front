@@ -1,12 +1,16 @@
-const CACHE_STATIC = 'app_shell_v1.2';
-const CACHE_DYNAMIC = 'dynamic_cache_v1.2';
+const CACHE_STATIC = 'app_shell_v1.4';
+const CACHE_DYNAMIC = 'dynamic_cache_v1.4';
 
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/src/main.jsx',
   '/src/App.jsx',
-  '/vite.svg'
+  '/manifest.json',
+  '/icons/icon48.png',
+  '/icons/icon64.png',
+  '/icons/icon128.png',
+  '/icons/icon256.png'
 ];
 
 // Instalación
@@ -15,14 +19,14 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_STATIC)
       .then((cache) => {
-        console.log('📦 Cacheando App Shell');
+        console.log('📦 Cacheando App Shell e íconos');
         return cache.addAll(STATIC_ASSETS);
       })
       .then(() => self.skipWaiting())
   );
 });
 
-// Activación
+// Activación (se mantiene igual)
 self.addEventListener('activate', (event) => {
   console.log('✅ SW: Activado');
   event.waitUntil(
@@ -39,7 +43,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch
+// Fetch (se mantiene igual)
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
