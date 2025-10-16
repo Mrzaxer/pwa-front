@@ -4,13 +4,13 @@ const SplashScreen = () => {
   return (
     <div className="splash-screen">
       <div className="splash-content">
-        <img 
-          src="/icons/icon256.png" 
-          alt="App Icon" 
-          className="splash-icon"
-        />
-        <h1>Mi Primera PWA</h1>
+        <div className="splash-icon">🚀</div>
+        <h1>Mi PWA App</h1>
+        <p>Conectando con el backend...</p>
         <div className="splash-loader"></div>
+        <div className="splash-features">
+
+        </div>
       </div>
     </div>
   );

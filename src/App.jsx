@@ -8,30 +8,60 @@ function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
+  const [backendStatus, setBackendStatus] = useState('checking');
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    
-    // Ocultar splash screen después de 2 segundos
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-      setLoading(false);
-    }, 2000);
-
-    return () => clearTimeout(timer);
+    initializeApp();
   }, []);
 
-  const handleLogin = (userData) => {
+  const initializeApp = async () => {
+    try {
+      // Verificar si hay usuario guardado
+      const savedUser = localStorage.getItem('user');
+      const token = localStorage.getItem('token');
+      
+      if (savedUser && token) {
+        setUser(JSON.parse(savedUser));
+      }
+      
+      // Verificar estado del backend
+      await checkBackendStatus();
+      
+    } catch (error) {
+      console.log('❌ Error inicializando app:', error);
+      setBackendStatus('offline');
+    } finally {
+      // Ocultar splash screen después de 2 segundos
+      setTimeout(() => {
+        setShowSplash(false);
+        setLoading(false);
+      }, 2000);
+    }
+  };
+
+  const checkBackendStatus = async () => {
+    try {
+      const response = await fetch('/api/health');
+      if (response.ok) {
+        setBackendStatus('online');
+      } else {
+        setBackendStatus('error');
+      }
+    } catch (error) {
+      setBackendStatus('offline');
+    }
+  };
+
+  const handleLogin = (userData, token) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('token', token);
   };
 
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
   };
 
   if (showSplash) {
@@ -44,10 +74,21 @@ function App() {
 
   return (
     <div className="App">
+      {/* Status Bar */}
+      <div className={`status-bar ${backendStatus}`}>
+        <div className="status-indicator"></div>
+        <span>
+          {backendStatus === 'online' && '✅ Conectado al backend'}
+          {backendStatus === 'offline' && '🔌 Modo offline - Los posts se guardarán localmente'}
+          {backendStatus === 'error' && '⚠️ Problema de conexión con el backend'}
+          {backendStatus === 'checking' && '🔄 Verificando conexión...'}
+        </span>
+      </div>
+
       {user ? (
-        <Dashboard user={user} onLogout={handleLogout} />
+        <Dashboard user={user} onLogout={handleLogout} backendStatus={backendStatus} />
       ) : (
-        <Login onLogin={handleLogin} />
+        <Login onLogin={handleLogin} backendStatus={backendStatus} />
       )}
     </div>
   );

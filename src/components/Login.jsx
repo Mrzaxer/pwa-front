@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { apiService } from '../services/api.js';
 import './Login.css';
 
 const Login = ({ onLogin }) => {
@@ -11,69 +12,36 @@ const Login = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  // Usuarios predefinidos (almacenados en localStorage)
-  const getStoredUsers = () => {
-    const stored = localStorage.getItem('devUsers');
-    return stored ? JSON.parse(stored) : [
-      { id: 1, username: 'admin', email: 'admin@test.com', password: '123' },
-      { id: 2, username: 'usuario1', email: 'usuario1@test.com', password: '123' },
-      { id: 3, username: 'demo', email: 'demo@test.com', password: 'demo' }
-    ];
-  };
-
-  const saveUsers = (users) => {
-    localStorage.setItem('devUsers', JSON.stringify(users));
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
 
-    // Simular delay de red
-    setTimeout(() => {
-      const users = getStoredUsers();
+    try {
+      let result;
       
       if (isLogin) {
-        // LOGIN
-        const user = users.find(u => 
-          u.email === formData.email && u.password === formData.password
-        );
-        
-        if (user) {
-          onLogin(user);
-          setMessage('✅ Login exitoso');
-        } else {
-          setMessage('❌ Email o contraseña incorrectos');
-        }
+        // LOGIN con backend real
+        result = await apiService.login(formData.email, formData.password);
       } else {
-        // REGISTRO
-        const existingUser = users.find(u => 
-          u.email === formData.email || u.username === formData.username
-        );
-        
-        if (existingUser) {
-          setMessage('❌ El usuario ya existe');
-        } else if (!formData.username || !formData.email || !formData.password) {
-          setMessage('❌ Completa todos los campos');
-        } else {
-          const newUser = {
-            id: Date.now(),
-            username: formData.username,
-            email: formData.email,
-            password: formData.password
-          };
-          const updatedUsers = [...users, newUser];
-          saveUsers(updatedUsers);
-          onLogin(newUser);
-          setMessage('✅ Registro exitoso');
-        }
+        // REGISTRO con backend real
+        result = await apiService.register(formData.username, formData.email, formData.password);
       }
+
+      if (result.success) {
+        onLogin(result.user, result.token);
+        setMessage(`✅ ${isLogin ? 'Login exitoso' : 'Registro exitoso'}`);
+      } else {
+        setMessage(`❌ ${result.message}`);
+      }
+    } catch (error) {
+      setMessage(`❌ Error: ${error.message}`);
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
-  // Login rápido
+  // Login rápido con usuarios de prueba
   const quickLogin = (email, password) => {
     setFormData({
       username: '',
@@ -81,8 +49,10 @@ const Login = ({ onLogin }) => {
       password: password
     });
     
+    // Auto-submit después de un breve delay
     setTimeout(() => {
-      handleSubmit(new Event('submit'));
+      const submitEvent = new Event('submit', { cancelable: true });
+      document.querySelector('.login-form').dispatchEvent(submitEvent);
     }, 100);
   };
 
@@ -98,6 +68,7 @@ const Login = ({ onLogin }) => {
             value={formData.username}
             onChange={(e) => setFormData({...formData, username: e.target.value})}
             required
+            minLength="3"
           />
         )}
         
@@ -115,6 +86,7 @@ const Login = ({ onLogin }) => {
           value={formData.password}
           onChange={(e) => setFormData({...formData, password: e.target.value})}
           required
+          minLength="6"
         />
         
         <button type="submit" disabled={loading}>
@@ -126,21 +98,30 @@ const Login = ({ onLogin }) => {
             {message}
           </div>
         )}
+
         
         <p className="toggle-form" onClick={() => setIsLogin(!isLogin)}>
           {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
         </p>
 
+        <div className="demo-info">
+          <p><strong>Para probar:</strong></p>
+          <p>Email: admin@test.com | Password: 123456</p>
+          <p>O crea una cuenta nueva</p>
+        </div>
+
+        {/* Botón de acceso directo sin login (solo desarrollo) */}
         <button 
           type="button" 
           className="guest-btn"
           onClick={() => onLogin({
-            id: 999,
+            id: 'guest',
             username: 'Invitado',
-            email: 'invitado@test.com'
-          })}
+            email: 'invitado@test.com',
+            role: 'user'
+          }, 'guest-token')}
         >
-          Entrar como Invitado
+          Entrar como Invitado (Solo Desarrollo)
         </button>
       </form>
     </div>

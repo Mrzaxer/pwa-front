@@ -1,37 +1,52 @@
 import { useState, useEffect } from 'react';
+import { apiService } from '../services/api.js';
+import { notificationService } from '../services/notificationService.js';
+import { postService } from '../services/postService.js';
+import { dbManager } from '../utils/indexedDB.js';
 import './Dashboard.css';
 
 const Dashboard = ({ user, onLogout }) => {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dbInfo, setDbInfo] = useState(null);
+  const [notificationStatus, setNotificationStatus] = useState({
+    permission: 'default',
+    subscribed: false,
+    loading: false
+  });
+  const [postForm, setPostForm] = useState({
+    title: '',
+    content: ''
+  });
+  const [postMessage, setPostMessage] = useState('');
 
   useEffect(() => {
     fetchImages();
+    checkNotificationStatus();
   }, []);
+
+  const checkNotificationStatus = async () => {
+    const status = await notificationService.getNotificationStatus();
+    setNotificationStatus(prev => ({
+      ...prev,
+      ...status
+    }));
+  };
 
   const fetchImages = async () => {
     try {
-      // Intentar conectar al backend primero
-      const response = await fetch('/api/images');
-      if (response.ok) {
-        const data = await response.json();
-        setImages(data);
-      } else {
-        throw new Error('Backend no disponible');
-      }
+      const data = await apiService.getImages();
+      setImages(data);
     } catch (error) {
-      // Si falla, usar imágenes locales
-      console.log('🌐 Usando imágenes locales');
+      console.log('🌐 Error cargando imágenes, usando respaldo:', error.message);
+      // Imágenes de respaldo
       const localImages = [
         { id: 1, url: 'https://picsum.photos/300/200?random=1', title: 'Imagen 1' },
         { id: 2, url: 'https://picsum.photos/300/200?random=2', title: 'Imagen 2' },
         { id: 3, url: 'https://picsum.photos/300/200?random=3', title: 'Imagen 3' },
         { id: 4, url: 'https://picsum.photos/300/200?random=4', title: 'Imagen 4' },
         { id: 5, url: 'https://picsum.photos/300/200?random=5', title: 'Imagen 5' },
-        { id: 6, url: 'https://picsum.photos/300/200?random=6', title: 'Imagen 6' },
-        { id: 7, url: 'https://picsum.photos/300/200?random=7', title: 'Imagen 7' },
-        { id: 8, url: 'https://picsum.photos/300/200?random=8', title: 'Imagen 8' }
+        { id: 6, url: 'https://picsum.photos/300/200?random=6', title: 'Imagen 6' }
       ];
       setImages(localImages);
     } finally {
@@ -39,7 +54,41 @@ const Dashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Función para crear ObjectStore y ver la DB
+  // ==================== NOTIFICACIONES PUSH ====================
+  const handleEnableNotifications = async () => {
+    setNotificationStatus(prev => ({ ...prev, loading: true }));
+    
+    try {
+      const permissionGranted = await notificationService.requestPermission();
+      
+      if (permissionGranted) {
+        await notificationService.subscribeToPush();
+        await checkNotificationStatus();
+        setDbInfo('🔔 Notificaciones push activadas correctamente');
+      }
+    } catch (error) {
+      setDbInfo(`❌ Error activando notificaciones: ${error.message}`);
+    } finally {
+      setNotificationStatus(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    try {
+      await notificationService.sendTestNotification();
+      setDbInfo('📤 Notificación de prueba enviada a todos los usuarios');
+    } catch (error) {
+      setDbInfo(`❌ Error enviando notificación: ${error.message}`);
+    }
+  };
+
+  const handleDisableNotifications = async () => {
+    await notificationService.unsubscribe();
+    await checkNotificationStatus();
+    setDbInfo('🔕 Notificaciones deshabilitadas');
+  };
+
+  // ==================== INDEXEDDB ====================
   const handleCreateObjectStore = () => {
     return new Promise((resolve, reject) => {
       const request = window.indexedDB.open('PWA_Database', 1);
@@ -47,7 +96,7 @@ const Dashboard = ({ user, onLogout }) => {
       request.onerror = (event) => {
         const error = `❌ Error: ${event.target.error}`;
         setDbInfo(error);
-        reject(error);
+        reject(event.target.error);
       };
       
       request.onsuccess = (event) => {
@@ -59,7 +108,6 @@ const Dashboard = ({ user, onLogout }) => {
 📦 ObjectStores: ${Array.from(db.objectStoreNames).join(', ') || 'Ninguno'}
         `;
         setDbInfo(info);
-        console.log('📊 Info DB:', db);
         resolve(db);
       };
       
@@ -80,7 +128,6 @@ const Dashboard = ({ user, onLogout }) => {
     });
   };
 
-  // Función para agregar datos de prueba
   const addTestData = async () => {
     try {
       const db = await handleCreateObjectStore();
@@ -93,7 +140,7 @@ const Dashboard = ({ user, onLogout }) => {
         endpoint: '/api/posts',
         data: {
           title: 'Post de prueba desde IndexedDB',
-          content: 'Este post se guardó localmente y se sincronizará después',
+          content: 'Este post se guardó localmente y se sincronizará cuando haya conexión',
           author: user.username,
           timestamp: new Date().toISOString()
         },
@@ -118,7 +165,6 @@ const Dashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Función para ver todos los datos
   const viewAllData = async () => {
     const request = window.indexedDB.open('PWA_Database');
     
@@ -161,7 +207,6 @@ const Dashboard = ({ user, onLogout }) => {
     };
   };
 
-  // Función para limpiar la DB
   const clearDatabase = () => {
     const request = window.indexedDB.open('PWA_Database');
     
@@ -186,17 +231,90 @@ const Dashboard = ({ user, onLogout }) => {
     };
   };
 
+  // ==================== CREAR POSTS ====================
+  const handlePostSubmit = async (e) => {
+    e.preventDefault();
+    setPostMessage('');
+
+    if (!postForm.title || !postForm.content) {
+      setPostMessage('❌ Título y contenido son requeridos');
+      return;
+    }
+
+    try {
+      const result = await postService.sendPost(postForm.title, postForm.content);
+      
+      if (result.success) {
+        setPostMessage('✅ Post publicado exitosamente');
+        setPostForm({ title: '', content: '' });
+      } else {
+        setPostMessage(`📝 ${result.message}`);
+      }
+    } catch (error) {
+      setPostMessage(`❌ Error: ${error.message}`);
+    }
+  };
+
   return (
     <div className="dashboard">
       <header className="dashboard-header">
         <div className="user-info">
           <h1>¡Bienvenido, {user.username}!</h1>
-          <p>{user.email} | 🔧 Modo desarrollo</p>
+          <p>{user.email} | {user.role} | 🔧 Conectado al backend</p>
         </div>
         <button onClick={onLogout} className="logout-btn">Cerrar Sesión</button>
       </header>
-      
-      {/* Panel de control de Base de Datos */}
+
+      {/* Panel de Notificaciones Push */}
+      <div className="notification-panel">
+        <h2>🔔 Notificaciones Push</h2>
+        
+        <div className="notification-status">
+          <p>
+            <strong>Estado:</strong> {notificationStatus.permission === 'granted' ? '✅ Permitido' : 
+                                    notificationStatus.permission === 'denied' ? '❌ Denegado' : '⚠️ No decidido'}
+          </p>
+          <p>
+            <strong>Suscripción:</strong> {notificationStatus.subscribed ? '✅ Activa' : '❌ Inactiva'}
+          </p>
+        </div>
+
+        <div className="notification-buttons">
+          {!notificationStatus.subscribed ? (
+            <button 
+              onClick={handleEnableNotifications}
+              disabled={notificationStatus.loading || notificationStatus.permission === 'denied'}
+              className="notification-btn enable"
+            >
+              {notificationStatus.loading ? '⏳ Cargando...' : '🔔 Activar Notificaciones'}
+            </button>
+          ) : (
+            <>
+              <button 
+                onClick={handleSendTestNotification}
+                className="notification-btn test"
+              >
+                📤 Enviar Notificación Prueba
+              </button>
+              <button 
+                onClick={handleDisableNotifications}
+                className="notification-btn disable"
+              >
+                🔕 Desactivar Notificaciones
+              </button>
+            </>
+          )}
+        </div>
+
+        {notificationStatus.permission === 'denied' && (
+          <p className="notification-warning">
+            ❌ Los permisos para notificaciones están denegados. 
+            Debes habilitarlos manualmente en la configuración de tu navegador.
+          </p>
+        )}
+      </div>
+
+      {/* Panel de Control - IndexedDB */}
       <div className="db-control-panel">
         <h2>🧪 Panel de Control - IndexedDB</h2>
         <p>Gestiona la base de datos local para posts offline</p>
@@ -223,10 +341,39 @@ const Dashboard = ({ user, onLogout }) => {
           </div>
         )}
       </div>
+
+      {/* Crear Post */}
+      <div className="create-post-panel">
+        <h2>📝 Crear Nuevo Post</h2>
+        <form onSubmit={handlePostSubmit}>
+          <input
+            type="text"
+            placeholder="Título del post"
+            value={postForm.title}
+            onChange={(e) => setPostForm({...postForm, title: e.target.value})}
+            required
+          />
+          <textarea
+            placeholder="Contenido del post"
+            value={postForm.content}
+            onChange={(e) => setPostForm({...postForm, content: e.target.value})}
+            required
+            rows="4"
+          />
+          <button type="submit" className="post-submit-btn">
+            Publicar Post
+          </button>
+        </form>
+        {postMessage && (
+          <div className={`post-message ${postMessage.includes('✅') ? 'success' : 'info'}`}>
+            {postMessage}
+          </div>
+        )}
+      </div>
       
       <div className="images-section">
         <h2>Galería de Imágenes</h2>
-        <p>Las imágenes se cargan desde internet y se cachean para offline</p>
+        <p>Las imágenes se cargan desde el backend y se cachean para offline</p>
         
         {loading ? (
           <div className="loading">Cargando imágenes...</div>
@@ -239,7 +386,6 @@ const Dashboard = ({ user, onLogout }) => {
                   alt={image.title}
                   loading="lazy"
                   onError={(e) => {
-                    // Si falla la imagen, usar una de respaldo
                     e.target.src = `https://picsum.photos/300/200?random=${image.id + 10}`;
                   }}
                 />

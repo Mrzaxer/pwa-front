@@ -13,14 +13,9 @@ const CreatePost = () => {
     setLoading(true);
     setMessage('');
 
-    const postData = {
-      title,
-      content,
-      timestamp: new Date().toISOString()
-    };
-
     try {
-      const result = await postService.sendPost('/api/posts', postData);
+      // Usar el servicio de posts actualizado
+      const result = await postService.sendPost(title, content);
       
       if (result.success === false && result.localId) {
         setMessage('📝 Post guardado localmente. Se enviará cuando haya conexión.');
@@ -37,8 +32,15 @@ const CreatePost = () => {
   };
 
   const handleManualSync = () => {
-    postService.syncPendingPosts();
-    setMessage('🔄 Sincronización manual iniciada...');
+    // Esta función ahora está integrada en el servicio
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SYNC_PENDING_POSTS'
+      });
+      setMessage('🔄 Sincronización manual iniciada...');
+    } else {
+      setMessage('❌ Service Worker no disponible para sincronización');
+    }
   };
 
   return (
@@ -52,6 +54,7 @@ const CreatePost = () => {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
+          minLength="3"
         />
         
         <textarea
@@ -59,6 +62,8 @@ const CreatePost = () => {
           value={content}
           onChange={(e) => setContent(e.target.value)}
           required
+          minLength="10"
+          rows="5"
         />
         
         <button type="submit" disabled={loading}>
@@ -67,7 +72,8 @@ const CreatePost = () => {
       </form>
 
       {message && (
-        <div className={`message ${message.includes('✅') ? 'success' : 'info'}`}>
+        <div className={`message ${message.includes('✅') ? 'success' : 
+                          message.includes('📝') ? 'info' : 'error'}`}>
           {message}
         </div>
       )}
@@ -76,8 +82,18 @@ const CreatePost = () => {
         onClick={handleManualSync}
         className="sync-btn"
       >
-        🔄 Sincronizar Manualmente
+        🔄 Sincronizar Manualmente Posts Pendientes
       </button>
+
+      <div className="post-info">
+        <p><strong>💡 Funcionalidades:</strong></p>
+        <ul>
+          <li>✅ Posts se guardan en IndexedDB si no hay conexión</li>
+          <li>🔄 Sincronización automática cuando recuperas conexión</li>
+          <li>📱 Funciona completamente offline</li>
+          <li>🚀 Background Sync para envío automático</li>
+        </ul>
+      </div>
     </div>
   );
 };
