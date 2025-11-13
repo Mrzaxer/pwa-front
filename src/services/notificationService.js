@@ -105,6 +105,19 @@ class NotificationService {
     }
   }
 
+  // Enviar notificación de prueba
+  async sendNotification(customBaseUrl = null) {
+    try {
+      const result = await apiService.tNotification(customBaseUrl);
+      
+      console.log('📤 Notificación enviada:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Error enviando notificación:', error);
+      throw error;
+    }
+  }
+
   // Verificar si el usuario está suscrito
   async isSubscribed() {
     if (!this.isSupported()) return false;
@@ -161,38 +174,15 @@ class NotificationService {
     };
   }
 
-   // Enviar notificación a usuario específico
-  async sendNotificationToUser(userId, title, options = {}, customBaseUrl = null) {
-    try {
-      const result = await apiService.sendNotificationToUser(
-        userId, 
-        title, 
-        options, 
-        customBaseUrl
-      );
-      
-      console.log(`📤 Notificación enviada al usuario ${userId}:`, result);
-      return result;
-    } catch (error) {
-      console.error(`❌ Error enviando notificación al usuario ${userId}:`, error);
-      throw error;
-    }
-  }
-
-  // Enviar notificación a múltiples usuarios
-  async sendNotificationToUsers(userIds, title, options = {}, customBaseUrl = null) {
-    const results = [];
-    
-    for (const userId of userIds) {
-      try {
-        const result = await this.sendNotificationToUser(userId, title, options, customBaseUrl);
-        results.push({ userId, success: true, data: result });
-      } catch (error) {
-        results.push({ userId, success: false, error: error.message });
-      }
-    }
-    
-    return results;
+  // Enviar notificación personalizada
+  async sendCustomNotification(title, options = {}, customBaseUrl = null) {
+    return await apiService.sendNotification(
+      title,
+      options.body || '',
+      options.icon || '/icons/icon-192x192.png',
+      options.url || '/',
+      customBaseUrl
+    );
   }
 
   // Obtener estadísticas de notificaciones
