@@ -73,14 +73,7 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
     }
   };
 
-  const handleSendTestNotification = async () => {
-    try {
-      await notificationService.sendTestNotification(apiBaseUrl);
-      setDbInfo('📤 Notificación de prueba enviada a todos los usuarios');
-    } catch (error) {
-      setDbInfo(`❌ Error enviando notificación: ${error.message}`);
-    }
-  };
+
 
   const handleDisableNotifications = async () => {
     await notificationService.unsubscribe(apiBaseUrl);
@@ -300,12 +293,6 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
             </button>
           ) : (
             <>
-              <button 
-                onClick={handleSendTestNotification}
-                className="notification-btn test"
-              >
-                📤 Enviar Notificación Prueba
-              </button>
               <button 
                 onClick={handleDisableNotifications}
                 className="notification-btn disable"

@@ -105,19 +105,6 @@ class NotificationService {
     }
   }
 
-  // Enviar notificación de prueba
-  async sendTestNotification(customBaseUrl = null) {
-    try {
-      const result = await apiService.sendTestNotification(customBaseUrl);
-      
-      console.log('📤 Notificación enviada:', result);
-      return result;
-    } catch (error) {
-      console.error('❌ Error enviando notificación:', error);
-      throw error;
-    }
-  }
-
   // Verificar si el usuario está suscrito
   async isSubscribed() {
     if (!this.isSupported()) return false;
