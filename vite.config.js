@@ -9,7 +9,7 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'https://pwa-back-xmqw.onrender.com',
+        target: 'https://pwa-back-xmqw.onrender.com/api',
         changeOrigin: true,
         secure: false,
         configure: (proxy, _options) => {
