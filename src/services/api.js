@@ -1,8 +1,8 @@
-const API_BASE_URL = '/api';
-
+// services/api.js
 class ApiService {
   constructor() {
     this.token = localStorage.getItem('token');
+    this.baseUrl = import.meta.env.VITE_API_URL || 'https://pwa-back-xmqw.onrender.com/api';
   }
 
   setToken(token) {
@@ -27,7 +27,7 @@ class ApiService {
   }
 
   async request(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${this.baseUrl}${endpoint}`;
     const config = {
       headers: this.getHeaders(),
       ...options
@@ -39,6 +39,7 @@ class ApiService {
     }
 
     try {
+      console.log(`🌐 Haciendo petición a: ${url}`);
       const response = await fetch(url, config);
       
       // Si no hay contenido, retornar éxito
@@ -66,7 +67,11 @@ class ApiService {
   }
 
   // Auth endpoints
-  async login(email, password) {
+  async login(email, password, customBaseUrl = null) {
+    if (customBaseUrl) {
+      this.baseUrl = customBaseUrl;
+    }
+    
     const data = await this.request('/auth/login', {
       method: 'POST',
       body: { email, password }
@@ -81,7 +86,11 @@ class ApiService {
     return data;
   }
 
-  async register(username, email, password) {
+  async register(username, email, password, customBaseUrl = null) {
+    if (customBaseUrl) {
+      this.baseUrl = customBaseUrl;
+    }
+    
     const data = await this.request('/auth/register', {
       method: 'POST',
       body: { username, email, password }
@@ -115,7 +124,10 @@ class ApiService {
   }
 
   // Images endpoints
-  async getImages() {
+  async getImages(customBaseUrl = null) {
+    if (customBaseUrl) {
+      this.baseUrl = customBaseUrl;
+    }
     return await this.request('/images');
   }
 
@@ -124,8 +136,21 @@ class ApiService {
   }
 
   // Push notifications endpoints
-  async subscribeToPush(subscription) {
+  async subscribeToPush(subscription, customBaseUrl = null) {
+    if (customBaseUrl) {
+      this.baseUrl = customBaseUrl;
+    }
     return await this.request('/push/subscribe', {
+      method: 'POST',
+      body: { subscription }
+    });
+  }
+
+  async unsubscribeFromPush(subscription, customBaseUrl = null) {
+    if (customBaseUrl) {
+      this.baseUrl = customBaseUrl;
+    }
+    return await this.request('/push/unsubscribe', {
       method: 'POST',
       body: { subscription }
     });
@@ -138,23 +163,77 @@ class ApiService {
     });
   }
 
+  async sendTestNotification(customBaseUrl = null) {
+    if (customBaseUrl) {
+      this.baseUrl = customBaseUrl;
+    }
+    return await this.request('/push/test', {
+      method: 'POST'
+    });
+  }
+
   async getPushStats() {
     return await this.request('/push/stats');
   }
 
+  // Posts endpoints
+  async createPost(title, content, customBaseUrl = null) {
+    if (customBaseUrl) {
+      this.baseUrl = customBaseUrl;
+    }
+    return await this.request('/posts', {
+      method: 'POST',
+      body: { title, content }
+    });
+  }
+
+  async getPosts() {
+    return await this.request('/posts');
+  }
+
+  async getPostById(id) {
+    return await this.request(`/posts/${id}`);
+  }
+
+  async updatePost(id, title, content) {
+    return await this.request(`/posts/${id}`, {
+      method: 'PUT',
+      body: { title, content }
+    });
+  }
+
+  async deletePost(id) {
+    return await this.request(`/posts/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
   // Health check
-  async healthCheck() {
+  async healthCheck(customBaseUrl = null) {
+    if (customBaseUrl) {
+      this.baseUrl = customBaseUrl;
+    }
     return await this.request('/health');
   }
 
   // Verificar si el backend está disponible
-  async isBackendAvailable() {
+  async isBackendAvailable(customBaseUrl = null) {
     try {
-      await this.healthCheck();
+      await this.healthCheck(customBaseUrl);
       return true;
     } catch (error) {
       return false;
     }
+  }
+
+  // Método para cambiar la URL base dinámicamente
+  setBaseUrl(url) {
+    this.baseUrl = url;
+  }
+
+  // Método para obtener la URL base actual
+  getBaseUrl() {
+    return this.baseUrl;
   }
 }
 

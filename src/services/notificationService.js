@@ -46,7 +46,7 @@ class NotificationService {
   }
 
   // Suscribirse a notificaciones push
-  async subscribeToPush() {
+  async subscribeToPush(customBaseUrl = null) {
     if (!this.isSupported()) {
       console.log('❌ Notificaciones push no soportadas');
       return null;
@@ -71,7 +71,7 @@ class NotificationService {
       console.log('📱 Nueva suscripción push creada');
 
       // Enviar suscripción al servidor
-      await apiService.subscribeToPush(subscription);
+      await apiService.subscribeToPush(subscription, customBaseUrl);
 
       return subscription;
     } catch (error) {
@@ -106,14 +106,9 @@ class NotificationService {
   }
 
   // Enviar notificación de prueba
-  async sendTestNotification() {
+  async sendTestNotification(customBaseUrl = null) {
     try {
-      const result = await apiService.sendNotification(
-        '¡Hola desde Mi PWA! 👋',
-        'Esta es una notificación push de prueba desde el frontend',
-        '/icons/icon-192x192.png',
-        '/'
-      );
+      const result = await apiService.sendTestNotification(customBaseUrl);
       
       console.log('📤 Notificación enviada:', result);
       return result;
@@ -138,7 +133,7 @@ class NotificationService {
   }
 
   // Desuscribirse
-  async unsubscribe() {
+  async unsubscribe(customBaseUrl = null) {
     if (!this.isSupported()) return false;
 
     try {
@@ -147,6 +142,14 @@ class NotificationService {
 
       if (subscription) {
         await subscription.unsubscribe();
+        
+        // Notificar al backend sobre la desuscripción
+        try {
+          await apiService.unsubscribeFromPush(subscription, customBaseUrl);
+        } catch (backendError) {
+          console.log('⚠️ Error notificando al backend sobre desuscripción:', backendError);
+        }
+        
         console.log('📱 Usuario desuscrito de notificaciones push');
         return true;
       }
@@ -172,13 +175,24 @@ class NotificationService {
   }
 
   // Enviar notificación personalizada
-  async sendCustomNotification(title, options = {}) {
+  async sendCustomNotification(title, options = {}, customBaseUrl = null) {
     return await apiService.sendNotification(
       title,
       options.body || '',
       options.icon || '/icons/icon-192x192.png',
-      options.url || '/'
+      options.url || '/',
+      customBaseUrl
     );
+  }
+
+  // Obtener estadísticas de notificaciones
+  async getNotificationStats(customBaseUrl = null) {
+    try {
+      return await apiService.getPushStats(customBaseUrl);
+    } catch (error) {
+      console.error('❌ Error obteniendo estadísticas:', error);
+      return null;
+    }
   }
 }
 

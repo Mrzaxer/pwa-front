@@ -10,6 +10,9 @@ function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [backendStatus, setBackendStatus] = useState('checking');
 
+  // URL CORRECTA del backend - IMPORTANTE para producción
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pwa-back-xmqw.onrender.com/api';
+
   useEffect(() => {
     initializeApp();
   }, []);
@@ -31,20 +34,31 @@ function App() {
       console.log('❌ Error inicializando app:', error);
       setBackendStatus('offline');
     } finally {
-      // Quitamos el setTimeout fijo y dejamos que SplashScreen maneje el tiempo
       setLoading(false);
     }
   };
 
   const checkBackendStatus = async () => {
     try {
-      const response = await fetch('/api/health');
+      console.log('🔍 Verificando conexión con backend...');
+      
+      const response = await fetch(`${API_BASE_URL}/health`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
       if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Backend conectado:', data.message);
         setBackendStatus('online');
       } else {
+        console.warn('⚠️ Backend respondió con error:', response.status);
         setBackendStatus('error');
       }
     } catch (error) {
+      console.log('🔌 No se pudo conectar al backend:', error.message);
       setBackendStatus('offline');
     }
   };
@@ -62,7 +76,7 @@ function App() {
   };
 
   const handleSplashComplete = () => {
-    console.log('SplashScreen completed, showing main app');
+    console.log('SplashScreen completado, mostrando aplicación principal');
     setShowSplash(false);
   };
 
@@ -88,16 +102,31 @@ function App() {
         <div className="status-indicator"></div>
         <span>
           {backendStatus === 'online' && '✅ Conectado al backend'}
-          {backendStatus === 'offline' && '🔌 Modo offline - Los posts se guardarán localmente'}
+          {backendStatus === 'offline' && '🔌 Modo offline - Los datos se guardarán localmente'}
           {backendStatus === 'error' && '⚠️ Problema de conexión con el backend'}
           {backendStatus === 'checking' && '🔄 Verificando conexión...'}
         </span>
+        {/* Información de debug - solo en desarrollo */}
+        {import.meta.env.DEV && (
+          <small style={{ marginLeft: '10px', opacity: 0.7 }}>
+            API: {API_BASE_URL}
+          </small>
+        )}
       </div>
 
       {user ? (
-        <Dashboard user={user} onLogout={handleLogout} backendStatus={backendStatus} />
+        <Dashboard 
+          user={user} 
+          onLogout={handleLogout} 
+          backendStatus={backendStatus} 
+          apiBaseUrl={API_BASE_URL}
+        />
       ) : (
-        <Login onLogin={handleLogin} backendStatus={backendStatus} />
+        <Login 
+          onLogin={handleLogin} 
+          backendStatus={backendStatus} 
+          apiBaseUrl={API_BASE_URL}
+        />
       )}
     </div>
   );

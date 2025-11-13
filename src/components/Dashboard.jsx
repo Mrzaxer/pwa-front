@@ -5,7 +5,7 @@ import { postService } from '../services/postService.js';
 import { dbManager } from '../utils/indexedDB.js';
 import './Dashboard.css';
 
-const Dashboard = ({ user, onLogout }) => {
+const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dbInfo, setDbInfo] = useState(null);
@@ -23,7 +23,7 @@ const Dashboard = ({ user, onLogout }) => {
   useEffect(() => {
     fetchImages();
     checkNotificationStatus();
-  }, []);
+  }, [apiBaseUrl]); // Dependencia añadida
 
   const checkNotificationStatus = async () => {
     const status = await notificationService.getNotificationStatus();
@@ -35,7 +35,7 @@ const Dashboard = ({ user, onLogout }) => {
 
   const fetchImages = async () => {
     try {
-      const data = await apiService.getImages();
+      const data = await apiService.getImages(apiBaseUrl);
       setImages(data);
     } catch (error) {
       console.log('🌐 Error cargando imágenes, usando respaldo:', error.message);
@@ -62,7 +62,7 @@ const Dashboard = ({ user, onLogout }) => {
       const permissionGranted = await notificationService.requestPermission();
       
       if (permissionGranted) {
-        await notificationService.subscribeToPush();
+        await notificationService.subscribeToPush(apiBaseUrl);
         await checkNotificationStatus();
         setDbInfo('🔔 Notificaciones push activadas correctamente');
       }
@@ -75,7 +75,7 @@ const Dashboard = ({ user, onLogout }) => {
 
   const handleSendTestNotification = async () => {
     try {
-      await notificationService.sendTestNotification();
+      await notificationService.sendTestNotification(apiBaseUrl);
       setDbInfo('📤 Notificación de prueba enviada a todos los usuarios');
     } catch (error) {
       setDbInfo(`❌ Error enviando notificación: ${error.message}`);
@@ -83,7 +83,7 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
   const handleDisableNotifications = async () => {
-    await notificationService.unsubscribe();
+    await notificationService.unsubscribe(apiBaseUrl);
     await checkNotificationStatus();
     setDbInfo('🔕 Notificaciones deshabilitadas');
   };
@@ -137,7 +137,7 @@ const Dashboard = ({ user, onLogout }) => {
       
       // Datos de prueba para posts pendientes
       const testPost = {
-        endpoint: '/api/posts',
+        endpoint: `${apiBaseUrl}/posts`,
         data: {
           title: 'Post de prueba desde IndexedDB',
           content: 'Este post se guardó localmente y se sincronizará cuando haya conexión',
@@ -242,7 +242,7 @@ const Dashboard = ({ user, onLogout }) => {
     }
 
     try {
-      const result = await postService.sendPost(postForm.title, postForm.content);
+      const result = await postService.sendPost(postForm.title, postForm.content, apiBaseUrl);
       
       if (result.success) {
         setPostMessage('✅ Post publicado exitosamente');
@@ -260,7 +260,17 @@ const Dashboard = ({ user, onLogout }) => {
       <header className="dashboard-header">
         <div className="user-info">
           <h1>¡Bienvenido, {user.username}!</h1>
-          <p>{user.email} | {user.role} | 🔧 Conectado al backend</p>
+          <p>{user.email} | {user.role}</p>
+          <div className="backend-info">
+            <span className={`backend-status ${backendStatus}`}>
+              {backendStatus === 'online' && '✅ Backend Conectado'}
+              {backendStatus === 'offline' && '🔌 Modo Offline'}
+              {backendStatus === 'error' && '⚠️ Error de Conexión'}
+            </span>
+            {import.meta.env.DEV && (
+              <small className="api-url">API: {apiBaseUrl}</small>
+            )}
+          </div>
         </div>
         <button onClick={onLogout} className="logout-btn">Cerrar Sesión</button>
       </header>

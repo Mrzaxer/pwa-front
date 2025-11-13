@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { apiService } from '../services/api.js';
 import './Login.css';
 
-const Login = ({ onLogin }) => {
+const Login = ({ onLogin, backendStatus, apiBaseUrl }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     username: '',
@@ -21,11 +21,11 @@ const Login = ({ onLogin }) => {
       let result;
       
       if (isLogin) {
-        // LOGIN con backend real
-        result = await apiService.login(formData.email, formData.password);
+        // LOGIN con backend real usando apiBaseUrl
+        result = await apiService.login(formData.email, formData.password, apiBaseUrl);
       } else {
-        // REGISTRO con backend real
-        result = await apiService.register(formData.username, formData.email, formData.password);
+        // REGISTRO con backend real usando apiBaseUrl
+        result = await apiService.register(formData.username, formData.email, formData.password, apiBaseUrl);
       }
 
       if (result.success) {
@@ -58,6 +58,14 @@ const Login = ({ onLogin }) => {
 
   return (
     <div className="login-container">
+      <div className="backend-status-indicator">
+        <span className={`status ${backendStatus}`}>
+          {backendStatus === 'online' && '✅ Backend Conectado'}
+          {backendStatus === 'offline' && '🔌 Modo Offline'}
+          {backendStatus === 'error' && '⚠️ Error de Conexión'}
+        </span>
+      </div>
+
       <form onSubmit={handleSubmit} className="login-form">
         <h2>{isLogin ? 'Iniciar Sesión' : 'Registrarse'}</h2>
         
@@ -99,6 +107,23 @@ const Login = ({ onLogin }) => {
           </div>
         )}
 
+        {/* Botones de login rápido */}
+        <div className="quick-login-buttons">
+          <button 
+            type="button" 
+            className="quick-btn"
+            onClick={() => quickLogin('admin@test.com', '123456')}
+          >
+            Admin Test
+          </button>
+          <button 
+            type="button" 
+            className="quick-btn"
+            onClick={() => quickLogin('user@test.com', '123456')}
+          >
+            User Test
+          </button>
+        </div>
         
         <p className="toggle-form" onClick={() => setIsLogin(!isLogin)}>
           {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
@@ -111,18 +136,20 @@ const Login = ({ onLogin }) => {
         </div>
 
         {/* Botón de acceso directo sin login (solo desarrollo) */}
-        <button 
-          type="button" 
-          className="guest-btn"
-          onClick={() => onLogin({
-            id: 'guest',
-            username: 'Invitado',
-            email: 'invitado@test.com',
-            role: 'user'
-          }, 'guest-token')}
-        >
-          Entrar como Invitado (Solo Desarrollo)
-        </button>
+        {import.meta.env.DEV && (
+          <button 
+            type="button" 
+            className="guest-btn"
+            onClick={() => onLogin({
+              id: 'guest',
+              username: 'Invitado',
+              email: 'invitado@test.com',
+              role: 'user'
+            }, 'guest-token')}
+          >
+            Entrar como Invitado (Solo Desarrollo)
+          </button>
+        )}
       </form>
     </div>
   );

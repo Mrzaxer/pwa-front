@@ -8,12 +8,11 @@ class PostService {
   }
 
   // Enviar post - intenta con backend, si falla guarda en IndexedDB
-  async sendPost(title, content, image = null) {
+  async sendPost(title, content, customBaseUrl = null) {
     const user = JSON.parse(localStorage.getItem('user')) || {};
     const postData = {
       title,
       content,
-      image,
       author: user.username || 'Usuario',
       authorId: user.id || null,
       timestamp: new Date().toISOString(),
@@ -28,15 +27,8 @@ class PostService {
         throw new Error('Sin conexión a internet');
       }
 
-      // Verificar si el backend está disponible
-      const isBackendAvailable = await apiService.isBackendAvailable();
-      
-      if (!isBackendAvailable) {
-        throw new Error('Backend no disponible');
-      }
-
-      // Envío real al backend (reemplaza con tu endpoint real)
-      const response = await this.sendToBackend(postData);
+      // Envío real al backend usando apiService
+      const response = await apiService.createPost(title, content, customBaseUrl);
       
       console.log('✅ POST enviado exitosamente al backend');
       return {
@@ -49,7 +41,7 @@ class PostService {
       console.log('❌ Error enviando POST, guardando en IndexedDB:', error.message);
       
       // Guardar en IndexedDB para sincronización posterior
-      const postId = await this.savePostOffline(postData);
+      const postId = await this.savePostOffline(postData, customBaseUrl);
       
       // Registrar background sync
       await this.registerBackgroundSync();
@@ -63,35 +55,16 @@ class PostService {
     }
   }
 
-  // Envío real al backend
-  async sendToBackend(postData) {
-    // Aquí va tu lógica real de envío al backend
-    // Por ahora simulamos el envío
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        // Simular éxito 90% del tiempo, error 10%
-        if (Math.random() > 0.1) {
-          resolve({
-            id: Math.random().toString(36).substr(2, 9),
-            ...postData,
-            status: 'published',
-            publishedAt: new Date().toISOString()
-          });
-        } else {
-          reject(new Error('Error del servidor al publicar post'));
-        }
-      }, 1000);
-    });
-  }
-
   // Guardar post offline
-  async savePostOffline(postData) {
+  async savePostOffline(postData, customBaseUrl = null) {
+    const baseUrl = customBaseUrl || apiService.getBaseUrl();
     const postId = await dbManager.savePendingPost({
-      endpoint: '/api/posts',
+      endpoint: `${baseUrl}/posts`,
       data: postData,
       method: 'POST',
       timestamp: Date.now(),
-      type: 'post'
+      type: 'post',
+      baseUrl: baseUrl // Guardar la URL base para usar en la sincronización
     });
 
     // Actualizar contador de items pendientes
@@ -119,7 +92,7 @@ class PostService {
   }
 
   // Sincronizar manualmente posts pendientes
-  async syncPendingPosts() {
+  async syncPendingPosts(customBaseUrl = null) {
     if (this.syncInProgress) {
       console.log('🔄 Sincronización ya en progreso...');
       return { success: false, message: 'Sincronización en progreso' };
@@ -133,11 +106,14 @@ class PostService {
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({
           type: 'SYNC_PENDING_POSTS',
-          data: { manual: true }
+          data: { 
+            manual: true,
+            baseUrl: customBaseUrl || apiService.getBaseUrl()
+          }
         });
       }
 
-      const result = await this.processPendingPosts();
+      const result = await this.processPendingPosts(customBaseUrl);
       console.log('✅ Sincronización manual completada');
       return result;
 
@@ -177,7 +153,7 @@ class PostService {
   }
 
   // Procesar posts pendientes (usado por el Service Worker)
-  async processPendingPosts() {
+  async processPendingPosts(customBaseUrl = null) {
     if (this.syncInProgress) {
       return { success: false, message: 'Sincronización en progreso' };
     }
@@ -204,9 +180,23 @@ class PostService {
 
       for (const post of pendingPosts) {
         try {
-          // Intentar enviar al backend
-          const result = await this.sendToBackend(post.data);
+          // Usar la URL base guardada o la proporcionada
+          const baseUrl = post.baseUrl || customBaseUrl || apiService.getBaseUrl();
           
+          // Configurar temporalmente la URL base
+          const originalBaseUrl = apiService.getBaseUrl();
+          apiService.setBaseUrl(baseUrl);
+
+          // Intentar enviar al backend usando apiService
+          const result = await apiService.createPost(
+            post.data.title, 
+            post.data.content,
+            baseUrl
+          );
+          
+          // Restaurar URL base original
+          apiService.setBaseUrl(originalBaseUrl);
+
           // Marcar como exitoso y eliminar de IndexedDB
           await this.deletePendingPost(post.id);
           successCount++;
@@ -222,6 +212,9 @@ class PostService {
         } catch (error) {
           errorCount++;
           
+          // Restaurar URL base en caso de error
+          apiService.setBaseUrl(originalBaseUrl);
+
           // Actualizar intentos
           const updatedAttempts = (post.attempts || 0) + 1;
           await dbManager.updatePostAttempts(post.id, updatedAttempts);
@@ -275,7 +268,8 @@ class PostService {
       backgroundSyncSupported,
       lastSync: lastSync ? new Date(lastSync).toLocaleString() : 'Nunca',
       syncInProgress: this.syncInProgress,
-      online: offlineService.isOnline
+      online: offlineService.isOnline,
+      currentBaseUrl: apiService.getBaseUrl()
     };
   }
 
@@ -335,7 +329,7 @@ class PostService {
   }
 
   // Reintentar posts fallidos
-  async retryFailedPosts() {
+  async retryFailedPosts(customBaseUrl = null) {
     try {
       const pendingPosts = await this.getPendingPosts();
       const failedPosts = pendingPosts.filter(post => post.status === 'failed');
@@ -348,7 +342,7 @@ class PostService {
       console.log(`🔄 ${failedPosts.length} posts fallidos marcados para reintento`);
       
       // Iniciar sincronización
-      await this.syncPendingPosts();
+      await this.syncPendingPosts(customBaseUrl);
       
       return {
         success: true,
@@ -360,6 +354,16 @@ class PostService {
         success: false,
         error: error.message
       };
+    }
+  }
+
+  // Obtener posts del backend
+  async getPostsFromBackend(customBaseUrl = null) {
+    try {
+      return await apiService.getPosts(customBaseUrl);
+    } catch (error) {
+      console.error('❌ Error obteniendo posts del backend:', error);
+      throw error;
     }
   }
 }
