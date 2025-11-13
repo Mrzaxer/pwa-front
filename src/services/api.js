@@ -156,10 +156,22 @@ class ApiService {
     });
   }
 
-  async sendNotification(title, message = '', icon = '', url = '/') {
-    return await this.request('/push/send', {
+  // Enviar notificación a usuario específico
+  async sendNotificationToUser(userId, title, options = {}, customBaseUrl = null) {
+    if (customBaseUrl) {
+      this.baseUrl = customBaseUrl;
+    }
+    
+    return await this.request(`/push/send-to-user/${userId}`, {
       method: 'POST',
-      body: { title, message, icon, url }
+      body: {
+        title,
+        message: options.body || '',
+        icon: options.icon || '/icons/icon-192x192.png',
+        url: options.url || '/',
+        image: options.image || '',
+        tag: options.tag || 'general'
+      }
     });
   }
 
