@@ -31,11 +31,8 @@ function App() {
       console.log('❌ Error inicializando app:', error);
       setBackendStatus('offline');
     } finally {
-      // Ocultar splash screen después de 2 segundos
-      setTimeout(() => {
-        setShowSplash(false);
-        setLoading(false);
-      }, 2000);
+      // Quitamos el setTimeout fijo y dejamos que SplashScreen maneje el tiempo
+      setLoading(false);
     }
   };
 
@@ -64,12 +61,24 @@ function App() {
     localStorage.removeItem('token');
   };
 
+  const handleSplashComplete = () => {
+    console.log('SplashScreen completed, showing main app');
+    setShowSplash(false);
+  };
+
+  // Mostrar SplashScreen mientras se inicializa
   if (showSplash) {
-    return <SplashScreen />;
+    return <SplashScreen onLoadingComplete={handleSplashComplete} />;
   }
 
+  // Mostrar loading solo si es necesario después del splash
   if (loading) {
-    return <div className="loading">Cargando...</div>;
+    return (
+      <div className="loading">
+        <div className="loading-spinner"></div>
+        <p>Finalizando carga...</p>
+      </div>
+    );
   }
 
   return (

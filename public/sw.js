@@ -10,10 +10,10 @@ const STATIC_ASSETS = [
   '/src/main.jsx',
   '/src/App.jsx',
   '/manifest.json',
-  '/icons/icon-72x72.png',
-  '/icons/icon-128x128.png',
-  '/icons/icon-192x192.png',
-  '/icons/icon-256x256.png'
+  '/icons/icon72.png',
+  '/icons/icon128.png',
+  '/icons/icon192.png',
+  '/icons/icon256.png'
 ];
 
 // URLs a excluir del cache
