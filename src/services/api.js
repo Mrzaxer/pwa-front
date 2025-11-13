@@ -2,12 +2,12 @@
 class ApiService {
   constructor() {
     this.token = localStorage.getItem('token');
-    this.baseUrl = import.meta.env.VITE_API_URL || 'https://pwa-back-xmqw.onrender.com/api';
+    this.baseUrl = 'https://pwa-back-xmqw.onrender.com/api';
   }
 
   setToken(token) {
     this.token = token;
-    if (token) {
+    if (token) {  
       localStorage.setItem('token', token);
     } else {
       localStorage.removeItem('token');

@@ -312,15 +312,6 @@
   animation: bounce 2s ease-in-out infinite;
 }
 
-.splash-content h1 {
-  font-size: 48px;
-  font-weight: 800;
-  margin-bottom: 16px;
-  background: linear-gradient(135deg, #ffffff, #e2e8f0);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
 .splash-content p {
   font-size: 18px;
   margin-bottom: 25px;

@@ -11,7 +11,7 @@ function App() {
   const [backendStatus, setBackendStatus] = useState('checking');
 
   // URL CORRECTA del backend - IMPORTANTE para producción
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pwa-back-xmqw.onrender.com/api';
+  const API_BASE_URL = 'https://pwa-back-xmqw.onrender.com/api';
 
   useEffect(() => {
     initializeApp();
