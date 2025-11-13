@@ -73,7 +73,14 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
     }
   };
 
-
+  const handleSendNotification = async () => {
+    try {
+      await notificationService.sendNotification(apiBaseUrl);
+      setDbInfo('📤 Notificación de prueba enviada a todos los usuarios');
+    } catch (error) {
+      setDbInfo(`❌ Error enviando notificación: ${error.message}`);
+    }
+  };
 
   const handleDisableNotifications = async () => {
     await notificationService.unsubscribe(apiBaseUrl);
