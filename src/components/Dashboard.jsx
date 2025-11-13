@@ -59,10 +59,10 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
       if (permissionGranted) {
         await notificationService.subscribeToPush(apiBaseUrl);
         await checkNotificationStatus();
-        setDbInfo('🔔 Notificaciones push activadas correctamente');
+        setDbInfo('Notificaciones push activadas correctamente');
       }
     } catch (error) {
-      setDbInfo(`❌ Error activando notificaciones: ${error.message}`);
+      setDbInfo(`Error activando notificaciones: ${error.message}`);
     } finally {
       setNotificationStatus(prev => ({ ...prev, loading: false }));
     }
@@ -79,16 +79,16 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
         null,
         'test'
       );
-      setDbInfo('📤 Notificación de prueba enviada a todos los usuarios');
+      setDbInfo('Notificación de prueba enviada a todos los usuarios');
     } catch (error) {
-      setDbInfo(`❌ Error enviando notificación: ${error.message}`);
+      setDbInfo(`Error enviando notificación: ${error.message}`);
     }
   };
 
   const handleDisableNotifications = async () => {
     await notificationService.unsubscribe(apiBaseUrl);
     await checkNotificationStatus();
-    setDbInfo('🔕 Notificaciones deshabilitadas');
+    setDbInfo('Notificaciones deshabilitadas');
   };
 
   // ==================== INDEXEDDB ====================
@@ -125,7 +125,7 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
           });
           store.createIndex('timestamp', 'timestamp', { unique: false });
           store.createIndex('endpoint', 'endpoint', { unique: false });
-          setDbInfo('🆕 ObjectStore "pending_posts" creado con índices');
+          setDbInfo('ObjectStore "pending_posts" creado con índices');
         }
       };
     });
@@ -156,7 +156,7 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
       const postRequest = postStore.add(testPost);
       
       postRequest.onsuccess = () => {
-        setDbInfo(prev => prev + `\n\n📝 Post de prueba agregado (ID: ${postRequest.result})`);
+        setDbInfo(prev => prev + `\n\n Post de prueba agregado (ID: ${postRequest.result})`);
       };
       
       postRequest.onerror = (error) => {
@@ -185,13 +185,13 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
       
       postRequest.onsuccess = () => {
         const posts = postRequest.result;
-        let info = `📊 POSTS PENDIENTES (${posts.length}):\n\n`;
+        let info = `POSTS PENDIENTES (${posts.length}):\n\n`;
         
         if (posts.length === 0) {
           info += 'No hay posts pendientes';
         } else {
           posts.forEach((post, index) => {
-            info += `📝 POST ${index + 1}:\n`;
+            info += `  POST ${index + 1}:\n`;
             info += `   ID: ${post.id}\n`;
             info += `   Endpoint: ${post.endpoint}\n`;
             info += `   Intentos: ${post.attempts}\n`;
@@ -222,7 +222,7 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
         const clearRequest = store.clear();
         
         clearRequest.onsuccess = () => {
-          setDbInfo('🗑️ Todos los posts pendientes fueron eliminados');
+          setDbInfo('Todos los posts pendientes fueron eliminados');
         };
         
         clearRequest.onerror = (error) => {
@@ -240,23 +240,14 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
         <div className="user-info">
           <h1>¡Bienvenido, {user.username}!</h1>
           <p>{user.email} | {user.role}</p>
-          <div className="backend-info">
-            <span className={`backend-status ${backendStatus}`}>
-              {backendStatus === 'online' && '✅ Backend Conectado'}
-              {backendStatus === 'offline' && '🔌 Modo Offline'}
-              {backendStatus === 'error' && '⚠️ Error de Conexión'}
-            </span>
-            {import.meta.env.DEV && (
-              <small className="api-url">API: {apiBaseUrl}</small>
-            )}
-          </div>
+
         </div>
         <button onClick={onLogout} className="logout-btn">Cerrar Sesión</button>
       </header>
 
       {/* Panel de Notificaciones Push */}
       <div className="notification-panel">
-        <h2>🔔 Notificaciones Push</h2>
+        <h2>Notificaciones Push</h2>
         
         <div className="notification-status">
           <p>
@@ -275,7 +266,7 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
               disabled={notificationStatus.loading || notificationStatus.permission === 'denied'}
               className="notification-btn enable"
             >
-              {notificationStatus.loading ? '⏳ Cargando...' : '🔔 Activar Notificaciones'}
+              {notificationStatus.loading ? ' Cargando...' : 'Activar Notificaciones'}
             </button>
           ) : (
             <div className="notification-actions">
@@ -289,7 +280,7 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
                 onClick={handleDisableNotifications}
                 className="notification-btn disable"
               >
-                🔕 Desactivar Notificaciones
+                Desactivar Notificaciones
               </button>
             </div>
           )}
@@ -305,27 +296,27 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
 
       {/* Panel de Control - IndexedDB */}
       <div className="db-control-panel">
-        <h2>🧪 Panel de Control - IndexedDB</h2>
+        <h2>Panel de Control - IndexedDB</h2>
         <p>Gestiona la base de datos local para posts offline</p>
         
         <div className="db-buttons">
           <button onClick={handleCreateObjectStore} className="db-btn create">
-            🗃️ Crear DB
+            Crear DB
           </button>
           <button onClick={addTestData} className="db-btn add">
-            📝 Agregar Post Prueba
+            Agregar Post Prueba
           </button>
           <button onClick={viewAllData} className="db-btn view">
-            👀 Ver Posts Pendientes
+            Ver Posts Pendientes
           </button>
           <button onClick={clearDatabase} className="db-btn clear">
-            🗑️ Limpiar DB
+            Limpiar DB
           </button>
         </div>
         
         {dbInfo && (
           <div className="db-info">
-            <h3>📊 Información de la Base de Datos:</h3>
+            <h3>Información de la Base de Datos:</h3>
             <pre>{dbInfo}</pre>
           </div>
         )}

@@ -18,9 +18,9 @@ const CreatePost = () => {
       const result = await postService.sendPost(title, content);
       
       if (result.success === false && result.localId) {
-        setMessage('📝 Post guardado localmente. Se enviará cuando haya conexión.');
+        setMessage('Post guardado localmente. Se enviará cuando haya conexión.');
       } else {
-        setMessage('✅ Post publicado exitosamente!');
+        setMessage('Post publicado exitosamente!');
         setTitle('');
         setContent('');
       }
@@ -37,7 +37,7 @@ const CreatePost = () => {
       navigator.serviceWorker.controller.postMessage({
         type: 'SYNC_PENDING_POSTS'
       });
-      setMessage('🔄 Sincronización manual iniciada...');
+      setMessage(' Sincronización manual iniciada...');
     } else {
       setMessage('❌ Service Worker no disponible para sincronización');
     }

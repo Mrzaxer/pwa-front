@@ -57,7 +57,7 @@ const SplashScreen = ({ onLoadingComplete }) => {
   return (
     <div className="splash-screen">
       <div className="splash-content">
-        <div className="splash-icon">🚀</div>
+        <div className="splash-icon">🦦</div>
         <h1>Mi PWA App</h1>
         <p>{currentStep}</p>
         
@@ -67,14 +67,6 @@ const SplashScreen = ({ onLoadingComplete }) => {
             className="progress-bar" 
             style={{ width: `${progress}%` }}
           ></div>
-        </div>
-        
-        <div className="splash-features">
-          <div className="feature">✅ Autenticación JWT</div>
-          <div className="feature">🔔 Notificaciones Push</div>
-          <div className="feature">💾 IndexedDB Offline</div>
-          <div className="feature">📱 Background Sync</div>
-          <div className="feature">👥 Notificaciones entre usuarios</div>
         </div>
 
         {/* Debug info - solo en desarrollo */}

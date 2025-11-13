@@ -41,30 +41,8 @@ const Login = ({ onLogin, backendStatus, apiBaseUrl }) => {
     }
   };
 
-  // Login rápido con usuarios de prueba
-  const quickLogin = (email, password) => {
-    setFormData({
-      username: '',
-      email: email,
-      password: password
-    });
-    
-    // Auto-submit después de un breve delay
-    setTimeout(() => {
-      const submitEvent = new Event('submit', { cancelable: true });
-      document.querySelector('.login-form').dispatchEvent(submitEvent);
-    }, 100);
-  };
-
   return (
     <div className="login-container">
-      <div className="backend-status-indicator">
-        <span className={`status ${backendStatus}`}>
-          {backendStatus === 'online' && '✅ Backend Conectado'}
-          {backendStatus === 'offline' && '🔌 Modo Offline'}
-          {backendStatus === 'error' && '⚠️ Error de Conexión'}
-        </span>
-      </div>
 
       <form onSubmit={handleSubmit} className="login-form">
         <h2>{isLogin ? 'Iniciar Sesión' : 'Registrarse'}</h2>
@@ -106,50 +84,10 @@ const Login = ({ onLogin, backendStatus, apiBaseUrl }) => {
             {message}
           </div>
         )}
-
-        {/* Botones de login rápido */}
-        <div className="quick-login-buttons">
-          <button 
-            type="button" 
-            className="quick-btn"
-            onClick={() => quickLogin('admin@test.com', '123456')}
-          >
-            Admin Test
-          </button>
-          <button 
-            type="button" 
-            className="quick-btn"
-            onClick={() => quickLogin('user@test.com', '123456')}
-          >
-            User Test
-          </button>
-        </div>
         
         <p className="toggle-form" onClick={() => setIsLogin(!isLogin)}>
           {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
         </p>
-
-        <div className="demo-info">
-          <p><strong>Para probar:</strong></p>
-          <p>Email: admin@test.com | Password: 123456</p>
-          <p>O crea una cuenta nueva</p>
-        </div>
-
-        {/* Botón de acceso directo sin login (solo desarrollo) */}
-        {import.meta.env.DEV && (
-          <button 
-            type="button" 
-            className="guest-btn"
-            onClick={() => onLogin({
-              id: 'guest',
-              username: 'Invitado',
-              email: 'invitado@test.com',
-              role: 'user'
-            }, 'guest-token')}
-          >
-            Entrar como Invitado (Solo Desarrollo)
-          </button>
-        )}
       </form>
     </div>
   );
