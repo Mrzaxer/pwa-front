@@ -42,7 +42,7 @@ function App() {
     try {
       console.log('🔍 Verificando conexión con backend...');
       
-      const response = await fetch(`${API_BASE_URL}/health`, {
+      const response = await fetch(`https://pwa-back-xmqw.onrender.com/api/health`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
