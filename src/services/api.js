@@ -7,7 +7,7 @@ class ApiService {
 
   setToken(token) {
     this.token = token;
-    if (token) {  
+    if (token) {
       localStorage.setItem('token', token);
     } else {
       localStorage.removeItem('token');
@@ -135,7 +135,7 @@ class ApiService {
     return await this.request(`/images/${id}`);
   }
 
-  // Push notifications endpoints
+  // Push notifications endpoints - CORREGIDOS
   async subscribeToPush(subscription, customBaseUrl = null) {
     if (customBaseUrl) {
       this.baseUrl = customBaseUrl;
@@ -146,40 +146,41 @@ class ApiService {
     });
   }
 
-  async unsubscribeFromPush(subscription, customBaseUrl = null) {
+  async unsubscribeFromPush(endpoint, customBaseUrl = null) {
     if (customBaseUrl) {
       this.baseUrl = customBaseUrl;
     }
-    return await this.request('/push/unsubscribe', {
-      method: 'POST',
-      body: { subscription }
+    return await this.request('/push/subscription', {
+      method: 'DELETE',
+      body: { endpoint }
     });
   }
 
-  // Opción A: Usar la ruta /push/send que ya existe
-  async sendTestNotification(customBaseUrl = null) {
-    if (customBaseUrl) {
-      this.baseUrl = customBaseUrl;
-    }
-    
+  async sendNotification(title, message = '', icon = '', url = '/', image = null, tag = 'general') {
     return await this.request('/push/send', {
       method: 'POST',
-      body: {
-        title: 'Notificación de Prueba',
-        message: 'Esta es una notificación push de prueba desde el dashboard',
-        icon: '/icons/icon-192x192.png',
-        url: '/dashboard',
-        tag: 'test'
+      body: { 
+        title, 
+        message, 
+        icon: icon || '/icons/icon-192x192.png', 
+        url, 
+        image, 
+        tag 
       }
     });
   }
 
-  async sendTestNotification(customBaseUrl = null) {
-    if (customBaseUrl) {
-      this.baseUrl = customBaseUrl;
-    }
-    return await this.request('/push/test', {
-      method: 'POST'
+  async sendNotificationToUser(userId, title, message = '', icon = '', url = '/', image = null, tag = 'general') {
+    return await this.request(`/push/send-to-user/${userId}`, {
+      method: 'POST',
+      body: { 
+        title, 
+        message, 
+        icon: icon || '/icons/icon-192x192.png', 
+        url, 
+        image, 
+        tag 
+      }
     });
   }
 
@@ -239,12 +240,36 @@ class ApiService {
 
   // Método para cambiar la URL base dinámicamente
   setBaseUrl(url) {
+    // Asegurarse de que la URL termine con /api si es necesario
+    if (!url.includes('/api') && !url.endsWith('/')) {
+      url += '/api';
+    } else if (!url.includes('/api') && url.endsWith('/')) {
+      url += 'api';
+    }
     this.baseUrl = url;
   }
 
   // Método para obtener la URL base actual
   getBaseUrl() {
     return this.baseUrl;
+  }
+
+  // Método para limpiar el token (logout)
+  clearToken() {
+    this.token = null;
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  }
+
+  // Método para verificar si hay un usuario autenticado
+  isAuthenticated() {
+    return !!this.token && !!localStorage.getItem('user');
+  }
+
+  // Método para obtener el usuario actual
+  getCurrentUser() {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.parse(userStr) : null;
   }
 }
 
