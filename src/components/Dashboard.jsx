@@ -14,11 +14,6 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
     subscribed: false,
     loading: false
   });
-  const [postForm, setPostForm] = useState({
-    title: '',
-    content: ''
-  });
-  const [postMessage, setPostMessage] = useState('');
 
   useEffect(() => {
     fetchImages();
@@ -75,7 +70,15 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
 
   const handleSendNotification = async () => {
     try {
-      await notificationService.sendNotification(apiBaseUrl);
+      // Usar la función correcta del apiService
+      await apiService.sendNotification(
+        'Notificación de prueba',
+        'Esta es una notificación de prueba enviada desde el dashboard',
+        '/icons/icon-192x192.png',
+        '/',
+        null,
+        'test'
+      );
       setDbInfo('📤 Notificación de prueba enviada a todos los usuarios');
     } catch (error) {
       setDbInfo(`❌ Error enviando notificación: ${error.message}`);
@@ -231,30 +234,6 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
     };
   };
 
-  // ==================== CREAR POSTS ====================
-  const handlePostSubmit = async (e) => {
-    e.preventDefault();
-    setPostMessage('');
-
-    if (!postForm.title || !postForm.content) {
-      setPostMessage('❌ Título y contenido son requeridos');
-      return;
-    }
-
-    try {
-      const result = await postService.sendPost(postForm.title, postForm.content, apiBaseUrl);
-      
-      if (result.success) {
-        setPostMessage('✅ Post publicado exitosamente');
-        setPostForm({ title: '', content: '' });
-      } else {
-        setPostMessage(`📝 ${result.message}`);
-      }
-    } catch (error) {
-      setPostMessage(`❌ Error: ${error.message}`);
-    }
-  };
-
   return (
     <div className="dashboard">
       <header className="dashboard-header">
@@ -299,14 +278,20 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
               {notificationStatus.loading ? '⏳ Cargando...' : '🔔 Activar Notificaciones'}
             </button>
           ) : (
-            <>
+            <div className="notification-actions">
+              <button 
+                onClick={handleSendNotification}
+                className="notification-btn send"
+              >
+                📤 Enviar Notificación de Prueba
+              </button>
               <button 
                 onClick={handleDisableNotifications}
                 className="notification-btn disable"
               >
                 🔕 Desactivar Notificaciones
               </button>
-            </>
+            </div>
           )}
         </div>
 
@@ -346,35 +331,7 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
         )}
       </div>
 
-      {/* Crear Post */}
-      <div className="create-post-panel">
-        <h2>📝 Crear Nuevo Post</h2>
-        <form onSubmit={handlePostSubmit}>
-          <input
-            type="text"
-            placeholder="Título del post"
-            value={postForm.title}
-            onChange={(e) => setPostForm({...postForm, title: e.target.value})}
-            required
-          />
-          <textarea
-            placeholder="Contenido del post"
-            value={postForm.content}
-            onChange={(e) => setPostForm({...postForm, content: e.target.value})}
-            required
-            rows="4"
-          />
-          <button type="submit" className="post-submit-btn">
-            Publicar Post
-          </button>
-        </form>
-        {postMessage && (
-          <div className={`post-message ${postMessage.includes('✅') ? 'success' : 'info'}`}>
-            {postMessage}
-          </div>
-        )}
-      </div>
-      
+      {/* Galería de Imágenes */}
       <div className="images-section">
         <h2>Galería de Imágenes</h2>
         <p>Las imágenes se cargan desde el backend y se cachean para offline</p>
