@@ -156,21 +156,20 @@ class ApiService {
     });
   }
 
-  // Enviar notificación a usuario específico
-  async sendNotificationToUser(userId, title, options = {}, customBaseUrl = null) {
+  // Opción A: Usar la ruta /push/send que ya existe
+  async sendTestNotification(customBaseUrl = null) {
     if (customBaseUrl) {
       this.baseUrl = customBaseUrl;
     }
     
-    return await this.request(`/push/send-to-user/${userId}`, {
+    return await this.request('/push/send', {
       method: 'POST',
       body: {
-        title,
-        message: options.body || '',
-        icon: options.icon || '/icons/icon-192x192.png',
-        url: options.url || '/',
-        image: options.image || '',
-        tag: options.tag || 'general'
+        title: 'Notificación de Prueba',
+        message: 'Esta es una notificación push de prueba desde el dashboard',
+        icon: '/icons/icon-192x192.png',
+        url: '/dashboard',
+        tag: 'test'
       }
     });
   }
