@@ -1,91 +1,111 @@
-// components/SplashScreen.jsx
 import { useState, useEffect } from 'react';
 import './SplashScreen.css';
 
-const SplashScreen = ({ onLoadingComplete }) => {
-  const [progress, setProgress] = useState(0);
-  const [currentStep, setCurrentStep] = useState('Iniciando aplicación...');
-  const [isComplete, setIsComplete] = useState(false);
+const SplashScreen = ({ onLoadingComplete, backendStatus }) => {
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingText, setLoadingText] = useState('Inicializando aplicación...');
 
   useEffect(() => {
-    const steps = [
-      'Conectando con el backend...',
-      'Cargando componentes...', 
-      'Inicializando base de datos...',
-      'Configurando notificaciones...',
-      '¡Listo!'
+    console.log('🎬 SplashScreen: Iniciando secuencia de carga...');
+    
+    const loadingSteps = [
+      { progress: 20, text: 'Cargando componentes...' },
+      { progress: 40, text: 'Verificando conexión...' },
+      { progress: 60, text: 'Inicializando servicios...' },
+      { progress: 80, text: 'Preparando interfaz...' },
+      { progress: 95, text: 'Finalizando...' },
     ];
 
-    let current = 0;
-    
+    let currentStep = 0;
+    const totalSteps = loadingSteps.length;
+
     const interval = setInterval(() => {
-      if (current < steps.length) {
-        setCurrentStep(steps[current]);
-        setProgress(((current + 1) / steps.length) * 100);
-        current++;
+      if (currentStep < totalSteps) {
+        const step = loadingSteps[currentStep];
+        setLoadingProgress(step.progress);
+        setLoadingText(step.text);
+        currentStep++;
       } else {
         clearInterval(interval);
-        setIsComplete(true);
+        setLoadingProgress(100);
+        setLoadingText('¡Listo!');
         
-        // Esperar un poco antes de llamar al callback
+        // Esperar un poco antes de completar
         setTimeout(() => {
-          // Verificación segura antes de ejecutar
-          if (typeof onLoadingComplete === 'function') {
+          console.log('✅ SplashScreen: Carga completada');
+          if (onLoadingComplete) {
             onLoadingComplete();
           } else {
-            console.log('SplashScreen: Loading complete, but no callback provided');
+            console.warn('⚠️ SplashScreen: onLoadingComplete no proporcionado, auto-completando...');
+            // Auto-completar después de 1 segundo adicional
+            setTimeout(() => {
+              console.log('🔄 SplashScreen: Auto-completado por seguridad');
+            }, 1000);
           }
-        }, 1000);
+        }, 800);
       }
-    }, 600);
+    }, 400);
 
-    return () => clearInterval(interval);
+    // Limpieza del intervalo
+    return () => {
+      clearInterval(interval);
+      console.log('🧹 SplashScreen: Limpiando intervalos...');
+    };
   }, [onLoadingComplete]);
 
-  // Si el componente está completo pero no hay callback, ocultar después de tiempo
+  // Si el backend responde rápido, acelerar la carga
   useEffect(() => {
-    if (isComplete && typeof onLoadingComplete !== 'function') {
-      const fallbackTimer = setTimeout(() => {
-        console.warn('SplashScreen: Auto-hiding due to missing onLoadingComplete');
-        // Aquí podrías agregar lógica para ocultar el splash screen
-      }, 2000);
-      
-      return () => clearTimeout(fallbackTimer);
+    if (backendStatus && !backendStatus.loading && loadingProgress < 80) {
+      console.log('⚡ SplashScreen: Backend respondió, acelerando carga...');
+      setLoadingProgress(80);
+      setLoadingText('Conectado al servidor...');
     }
-  }, [isComplete, onLoadingComplete]);
+  }, [backendStatus, loadingProgress]);
 
   return (
     <div className="splash-screen">
       <div className="splash-content">
-        <div className="splash-icon">🦦</div>
-        <h1>Mi PWA App</h1>
-        <p>{currentStep}</p>
+        <div className="app-logo">
+          <div className="logo-icon">🚀</div>
+          <h1>Mi PWA App</h1>
+        </div>
         
-        {/* Progress Bar */}
-        <div className="progress-container">
-          <div 
-            className="progress-bar" 
-            style={{ width: `${progress}%` }}
-          ></div>
+        <div className="loading-section">
+          <div className="progress-bar">
+            <div 
+              className="progress-fill"
+              style={{ width: `${loadingProgress}%` }}
+            ></div>
+          </div>
+          <p className="loading-text">{loadingText}</p>
+          <div className="loading-details">
+            {backendStatus && (
+              <p className="backend-status">
+                {backendStatus.loading ? '🔄 Verificando servidor...' : 
+                 backendStatus.online ? '✅ Servidor conectado' : 
+                 '❌ Servidor no disponible'}
+              </p>
+            )}
+          </div>
         </div>
 
-        {/* Debug info - solo en desarrollo */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="debug-info">
-            <small>
-              onLoadingComplete: {typeof onLoadingComplete}
-              {isComplete && ' • Complete!'}
-            </small>
+        <div className="splash-features">
+          <div className="feature">
+            <span>🔔</span>
+            <span>Notificaciones Push</span>
           </div>
-        )}
+          <div className="feature">
+            <span>📱</span>
+            <span>Modo Offline</span>
+          </div>
+          <div className="feature">
+            <span>⚡</span>
+            <span>Rápido y Seguro</span>
+          </div>
+        </div>
       </div>
     </div>
   );
-};
-
-// Prop por defecto para evitar errores
-SplashScreen.defaultProps = {
-  onLoadingComplete: null
 };
 
 export default SplashScreen;
