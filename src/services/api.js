@@ -1,6 +1,6 @@
 class ApiService {
   constructor() {
-    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    this.baseUrl = import.meta.env.VITE_API_URL || 'https://pwa-back-xmqw.onrender.com';
     this.token = localStorage.getItem('authToken');
   }
 
@@ -21,22 +21,32 @@ class ApiService {
 
   // ==================== UTILIDADES ====================
 
-  // Construir URL correctamente
+  // Construir URL correctamente (CORREGIDO)
   buildUrl(endpoint, customBaseUrl = null) {
     const baseUrl = customBaseUrl || this.baseUrl;
+    
+    console.log('🔗 Construyendo URL:', { baseUrl, endpoint });
     
     // Limpiar la base URL - remover trailing slash
     let cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     
-    // Limpiar el endpoint - remover leading slash
-    let cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+    // Limpiar el endpoint - asegurar que empiece con /
+    let cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     
-    // Si la base URL ya contiene /api, no lo dupliques
-    if (cleanBaseUrl.endsWith('/api') && cleanEndpoint.startsWith('api/')) {
-      cleanEndpoint = cleanEndpoint.replace('api/', '');
+    // Si la base URL ya contiene /api, no duplicar
+    if (cleanBaseUrl.endsWith('/api')) {
+      cleanBaseUrl = cleanBaseUrl.slice(0, -4); // Remover /api
     }
     
-    return `${cleanBaseUrl}/${cleanEndpoint}`;
+    // Asegurar que el endpoint empiece con /api/
+    if (!cleanEndpoint.startsWith('/api/')) {
+      cleanEndpoint = `/api${cleanEndpoint}`;
+    }
+    
+    const finalUrl = `${cleanBaseUrl}${cleanEndpoint}`;
+    console.log('🔗 URL final construida:', finalUrl);
+    
+    return finalUrl;
   }
 
   // Manejar respuesta HTTP
@@ -69,8 +79,8 @@ class ApiService {
   // Login de usuario
   async login(email, password, customBaseUrl = null) {
     try {
-      const url = this.buildUrl('auth/login', customBaseUrl);
-      console.log('🔗 URL de login construida:', url);
+      const url = this.buildUrl('/auth/login', customBaseUrl);
+      console.log('🔗 URL de login:', url);
       console.log('📧 Email:', email);
       
       const response = await fetch(url, {
@@ -109,8 +119,8 @@ class ApiService {
   // Registro de usuario
   async register(username, email, password, customBaseUrl = null) {
     try {
-      const url = this.buildUrl('auth/register', customBaseUrl);
-      console.log('🔗 URL de registro construida:', url);
+      const url = this.buildUrl('/auth/register', customBaseUrl);
+      console.log('🔗 URL de registro:', url);
       
       const response = await fetch(url, {
         method: 'POST',
@@ -147,7 +157,7 @@ class ApiService {
   // Obtener perfil del usuario actual
   async getProfile(customBaseUrl = null) {
     try {
-      const url = this.buildUrl('auth/profile', customBaseUrl);
+      const url = this.buildUrl('/auth/profile', customBaseUrl);
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -174,7 +184,7 @@ class ApiService {
   // Buscar usuario por email
   async getUserByEmail(email, customBaseUrl = null) {
     try {
-      const url = this.buildUrl(`users/email/${encodeURIComponent(email)}`, customBaseUrl);
+      const url = this.buildUrl(`/users/email/${encodeURIComponent(email)}`, customBaseUrl);
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -192,7 +202,7 @@ class ApiService {
   // Buscar múltiples usuarios por emails
   async getUsersByEmails(emails, customBaseUrl = null) {
     try {
-      const url = this.buildUrl('users/emails', customBaseUrl);
+      const url = this.buildUrl('/users/emails', customBaseUrl);
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -214,7 +224,7 @@ class ApiService {
   // Suscribirse a notificaciones push
   async subscribeToPush(subscription, customBaseUrl = null) {
     try {
-      const url = this.buildUrl('push/subscribe', customBaseUrl);
+      const url = this.buildUrl('/push/subscribe', customBaseUrl);
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -234,7 +244,7 @@ class ApiService {
   // Desuscribirse de notificaciones push
   async unsubscribeFromPush(subscription, customBaseUrl = null) {
     try {
-      const url = this.buildUrl('push/subscription', customBaseUrl);
+      const url = this.buildUrl('/push/subscription', customBaseUrl);
       const response = await fetch(url, {
         method: 'DELETE',
         headers: {
@@ -254,7 +264,7 @@ class ApiService {
   // Enviar notificación global
   async sendNotification(title, message, icon, url, customBaseUrl = null) {
     try {
-      const endpoint = this.buildUrl('push/send', customBaseUrl);
+      const endpoint = this.buildUrl('/push/send', customBaseUrl);
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -279,7 +289,7 @@ class ApiService {
   // Enviar notificación a usuario específico
   async sendNotificationToUser(userId, title, message, icon, url, image, tag, customBaseUrl = null) {
     try {
-      const endpoint = this.buildUrl(`push/send-to-user/${userId}`, customBaseUrl);
+      const endpoint = this.buildUrl(`/push/send-to-user/${userId}`, customBaseUrl);
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -306,7 +316,7 @@ class ApiService {
   // Enviar notificación a usuario por email
   async sendNotificationToEmail(email, title, message, icon, url, image, tag, customBaseUrl = null) {
     try {
-      const endpoint = this.buildUrl('push/send-to-email', customBaseUrl);
+      const endpoint = this.buildUrl('/push/send-to-email', customBaseUrl);
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -334,7 +344,7 @@ class ApiService {
   // Enviar notificación a múltiples usuarios
   async sendNotificationToUsers(userIds, title, message, icon, url, image, tag, customBaseUrl = null) {
     try {
-      const endpoint = this.buildUrl('push/send-to-users', customBaseUrl);
+      const endpoint = this.buildUrl('/push/send-to-users', customBaseUrl);
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -362,7 +372,7 @@ class ApiService {
   // Enviar notificación a múltiples usuarios por emails
   async sendNotificationToEmails(emails, title, message, icon, url, image, tag, customBaseUrl = null) {
     try {
-      const endpoint = this.buildUrl('push/send-to-emails', customBaseUrl);
+      const endpoint = this.buildUrl('/push/send-to-emails', customBaseUrl);
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -390,7 +400,7 @@ class ApiService {
   // Obtener estadísticas de notificaciones
   async getPushStats(customBaseUrl = null) {
     try {
-      const endpoint = this.buildUrl('push/stats', customBaseUrl);
+      const endpoint = this.buildUrl('/push/stats', customBaseUrl);
       const response = await fetch(endpoint, {
         method: 'GET',
         headers: {
@@ -410,7 +420,7 @@ class ApiService {
   // Obtener todos los posts
   async getPosts(customBaseUrl = null) {
     try {
-      const endpoint = this.buildUrl('posts', customBaseUrl);
+      const endpoint = this.buildUrl('/posts', customBaseUrl);
       const response = await fetch(endpoint, {
         method: 'GET',
         headers: {
@@ -428,7 +438,7 @@ class ApiService {
   // Crear nuevo post
   async createPost(postData, customBaseUrl = null) {
     try {
-      const endpoint = this.buildUrl('posts', customBaseUrl);
+      const endpoint = this.buildUrl('/posts', customBaseUrl);
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -448,7 +458,7 @@ class ApiService {
   // Obtener imágenes
   async getImages(customBaseUrl = null) {
     try {
-      const endpoint = this.buildUrl('images', customBaseUrl);
+      const endpoint = this.buildUrl('/images', customBaseUrl);
       const response = await fetch(endpoint, {
         method: 'GET',
         headers: {
@@ -468,7 +478,7 @@ class ApiService {
   // Obtener notificaciones del usuario
   async getNotifications(customBaseUrl = null) {
     try {
-      const endpoint = this.buildUrl('notifications', customBaseUrl);
+      const endpoint = this.buildUrl('/notifications', customBaseUrl);
       const response = await fetch(endpoint, {
         method: 'GET',
         headers: {
@@ -486,7 +496,7 @@ class ApiService {
   // Marcar notificación como leída
   async markNotificationAsRead(notificationId, customBaseUrl = null) {
     try {
-      const endpoint = this.buildUrl(`notifications/${notificationId}/read`, customBaseUrl);
+      const endpoint = this.buildUrl(`/notifications/${notificationId}/read`, customBaseUrl);
       const response = await fetch(endpoint, {
         method: 'PUT',
         headers: {
@@ -517,7 +527,7 @@ class ApiService {
   // Verificar conexión con el servidor
   async healthCheck(customBaseUrl = null) {
     try {
-      const url = this.buildUrl('health', customBaseUrl);
+      const url = this.buildUrl('/health', customBaseUrl);
       const response = await fetch(url);
       return response.ok;
     } catch (error) {
