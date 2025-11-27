@@ -302,42 +302,6 @@ function App() {
   return (
     <div className="app">
       {/* Header con estado de conexión - Solo mostrar cuando no sea splash */}
-      {!splashLoading && currentView !== 'splash' && (
-        <header className="app-header">
-          <div className="connection-status">
-            {backendStatus.loading ? (
-              <span className="status-loading">🔄 Conectando...</span>
-            ) : backendStatus.online ? (
-              <span className="status-online">✅ Conectado</span>
-            ) : (
-              <span className="status-offline">❌ Sin conexión</span>
-            )}
-          </div>
-          
-          {user && (
-            <nav className="app-nav">
-              <button 
-                onClick={() => setCurrentView('dashboard')}
-                className={currentView === 'dashboard' ? 'active' : ''}
-              >
-                Dashboard
-              </button>
-              <button 
-                onClick={() => setCurrentView('notifications')}
-                className={currentView === 'notifications' ? 'active' : ''}
-              >
-                Notificaciones
-              </button>
-              <button 
-                onClick={() => setCurrentView('create-post')}
-                className={currentView === 'create-post' ? 'active' : ''}
-              >
-                Crear Post
-              </button>
-            </nav>
-          )}
-        </header>
-      )}
 
       {/* Contenido principal */}
       <main className="app-main">

@@ -88,21 +88,6 @@ const SplashScreen = ({ onLoadingComplete, backendStatus }) => {
             )}
           </div>
         </div>
-
-        <div className="splash-features">
-          <div className="feature">
-            <span>🔔</span>
-            <span>Notificaciones Push</span>
-          </div>
-          <div className="feature">
-            <span>📱</span>
-            <span>Modo Offline</span>
-          </div>
-          <div className="feature">
-            <span>⚡</span>
-            <span>Rápido y Seguro</span>
-          </div>
-        </div>
       </div>
     </div>
   );
