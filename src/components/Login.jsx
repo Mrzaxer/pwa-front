@@ -88,14 +88,20 @@ const Login = ({ onLogin, backendStatus, apiBaseUrl }) => {
         }
 
         if (result.success) {
-          onLogin(result.user, result.token);
+          // Asegurarnos de que onLogin recibe los parámetros correctos
+          if (onLogin) {
+            onLogin(result.user || result, result.token);
+          }
           setMessage(`✅ ${isLogin ? 'Login exitoso' : 'Registro exitoso'}`);
+          // Limpiar formulario después de éxito
+          setFormData({ username: '', email: '', password: '' });
         } else {
-          setMessage(`❌ ${result.message}`);
+          setMessage(`❌ ${result.message || result.error || 'Error en la operación'}`);
         }
       }
     } catch (error) {
-      setMessage(`❌ Error: ${error.message}`);
+      console.error('Error en submit:', error);
+      setMessage(`❌ Error: ${error.message || 'Error de conexión'}`);
     } finally {
       setLoading(false);
       await updatePendingOperationsCount();
@@ -122,6 +128,20 @@ const Login = ({ onLogin, backendStatus, apiBaseUrl }) => {
       setLoading(false);
       await updatePendingOperationsCount();
     }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const toggleFormMode = () => {
+    setIsLogin(!isLogin);
+    setFormData({ username: '', email: '', password: '' });
+    setMessage('');
   };
 
   return (
@@ -152,33 +172,46 @@ const Login = ({ onLogin, backendStatus, apiBaseUrl }) => {
         {!isLogin && (
           <input
             type="text"
+            name="username"
             placeholder="Nombre de usuario"
             value={formData.username}
-            onChange={(e) => setFormData({...formData, username: e.target.value})}
+            onChange={handleInputChange}
             required
             minLength="3"
+            disabled={loading}
           />
         )}
         
         <input
           type="email"
+          name="email"
           placeholder="Correo electrónico"
           value={formData.email}
-          onChange={(e) => setFormData({...formData, email: e.target.value})}
+          onChange={handleInputChange}
           required
+          disabled={loading}
         />
         
         <input
           type="password"
+          name="password"
           placeholder="Contraseña"
           value={formData.password}
-          onChange={(e) => setFormData({...formData, password: e.target.value})}
+          onChange={handleInputChange}
           required
           minLength="6"
+          disabled={loading}
         />
         
         <button type="submit" disabled={loading}>
-          {loading ? 'Cargando...' : (isLogin ? 'Entrar' : 'Registrarse')}
+          {loading ? (
+            <>
+              <span className="loading-spinner"></span>
+              {isLogin ? 'Iniciando sesión...' : 'Registrando...'}
+            </>
+          ) : (
+            isLogin ? 'Entrar' : 'Registrarse'
+          )}
         </button>
         
         {message && (
@@ -187,7 +220,7 @@ const Login = ({ onLogin, backendStatus, apiBaseUrl }) => {
           </div>
         )}
         
-        <p className="toggle-form" onClick={() => setIsLogin(!isLogin)}>
+        <p className="toggle-form" onClick={toggleFormMode}>
           {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
         </p>
       </form>

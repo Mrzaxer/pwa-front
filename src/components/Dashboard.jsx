@@ -14,11 +14,18 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
     subscribed: false,
     loading: false
   });
+  const [customNotification, setCustomNotification] = useState({
+    title: '',
+    message: '',
+    targetEmail: '',
+    targetType: 'all'
+  });
+  const [sendingNotification, setSendingNotification] = useState(false);
 
   useEffect(() => {
     fetchImages();
     checkNotificationStatus();
-  }, [apiBaseUrl]); // Dependencia añadida
+  }, [apiBaseUrl]);
 
   const checkNotificationStatus = async () => {
     const status = await notificationService.getNotificationStatus();
@@ -70,18 +77,147 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
 
   const handleSendNotification = async () => {
     try {
-      // Usar la función correcta del apiService
       await apiService.sendNotification(
         'Notificación de prueba',
         'Esta es una notificación de prueba enviada desde el dashboard',
         '/icons/icon-192x192.png',
         '/',
-        null,
-        'test'
+        apiBaseUrl
       );
       setDbInfo('Notificación de prueba enviada a todos los usuarios');
     } catch (error) {
       setDbInfo(`Error enviando notificación: ${error.message}`);
+    }
+  };
+
+  // Función para enviar notificación a usuario específico por email
+  const handleSendToUser = async () => {
+    if (!customNotification.targetEmail) {
+      setDbInfo('❌ Por favor ingresa el email del usuario');
+      return;
+    }
+
+    if (!customNotification.title) {
+      setDbInfo('❌ Por favor ingresa un título para la notificación');
+      return;
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customNotification.targetEmail)) {
+      setDbInfo('❌ Por favor ingresa un email válido');
+      return;
+    }
+
+    setSendingNotification(true);
+    try {
+      // Primero verificamos que el usuario existe
+      const userCheck = await apiService.getUserByEmail(customNotification.targetEmail, apiBaseUrl);
+      
+      if (!userCheck.success) {
+        setDbInfo(`❌ Usuario no encontrado: ${customNotification.targetEmail}`);
+        return;
+      }
+
+      // Enviar notificación usando el nuevo endpoint por email
+      const result = await apiService.sendNotificationToEmail(
+        customNotification.targetEmail,
+        customNotification.title,
+        customNotification.message || 'Tienes una nueva notificación',
+        '/icons/icon-192x192.png',
+        '/',
+        null,
+        'personal',
+        apiBaseUrl
+      );
+
+      if (result.success) {
+        setDbInfo(`✅ Notificación enviada a: ${customNotification.targetEmail}`);
+        setCustomNotification({
+          title: '',
+          message: '',
+          targetEmail: '',
+          targetType: 'all'
+        });
+      } else {
+        setDbInfo(`❌ Error: ${result.error || result.message}`);
+      }
+    } catch (error) {
+      setDbInfo(`❌ Error enviando notificación: ${error.message}`);
+    } finally {
+      setSendingNotification(false);
+    }
+  };
+
+  // Función para enviar notificación a múltiples usuarios por emails
+  const handleSendToMultipleUsers = async () => {
+    if (!customNotification.targetEmail) {
+      setDbInfo('❌ Por favor ingresa los emails de los usuarios');
+      return;
+    }
+
+    if (!customNotification.title) {
+      setDbInfo('❌ Por favor ingresa un título para la notificación');
+      return;
+    }
+
+    setSendingNotification(true);
+    try {
+      // Separar emails por comas y limpiar espacios
+      const emails = customNotification.targetEmail
+        .split(',')
+        .map(email => email.trim())
+        .filter(email => email.length > 0);
+
+      if (emails.length === 0) {
+        setDbInfo('❌ Por favor ingresa al menos un email válido');
+        return;
+      }
+
+      // Validar formato de cada email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const invalidEmails = emails.filter(email => !emailRegex.test(email));
+      
+      if (invalidEmails.length > 0) {
+        setDbInfo(`❌ Emails inválidos: ${invalidEmails.join(', ')}`);
+        return;
+      }
+
+      // Verificar qué usuarios existen
+      const usersCheck = await apiService.getUsersByEmails(emails, apiBaseUrl);
+      
+      if (usersCheck.found === 0) {
+        setDbInfo('❌ No se encontraron usuarios con los emails proporcionados');
+        return;
+      }
+
+      // Enviar notificación a los emails usando el nuevo endpoint
+      const result = await apiService.sendNotificationToEmails(
+        emails,
+        customNotification.title,
+        customNotification.message || 'Tienes una nueva notificación',
+        '/icons/icon-192x192.png',
+        '/',
+        null,
+        'group',
+        apiBaseUrl
+      );
+
+      if (result.success) {
+        setDbInfo(`✅ Notificación enviada a ${usersCheck.found} de ${emails.length} usuarios`);
+        setCustomNotification({
+          title: '',
+          message: '',
+          targetEmail: '',
+          targetType: 'all'
+        });
+      } else {
+        setDbInfo(`❌ Error: ${result.error || result.message}`);
+      }
+    } catch (error) {
+      setDbInfo(`❌ Error enviando notificaciones: ${error.message}`);
+    } finally {
+      setSendingNotification(false);
     }
   };
 
@@ -240,12 +376,11 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
         <div className="user-info">
           <h1>¡Bienvenido, {user.username}!</h1>
           <p>{user.email} | {user.role}</p>
-
         </div>
         <button onClick={onLogout} className="logout-btn">Cerrar Sesión</button>
       </header>
 
-      {/* Panel de Notificaciones Push */}
+      {/* Panel de Notificaciones Push Mejorado */}
       <div className="notification-panel">
         <h2>Notificaciones Push</h2>
         
@@ -274,16 +409,100 @@ const Dashboard = ({ user, onLogout, backendStatus, apiBaseUrl }) => {
                 onClick={handleSendNotification}
                 className="notification-btn send"
               >
-                📤 Enviar Notificación de Prueba
-              </button>
-              <button 
-                onClick={handleDisableNotifications}
-                className="notification-btn disable"
-              >
-                Desactivar Notificaciones
+                📤 Enviar a Todos
               </button>
             </div>
           )}
+        </div>
+
+        {/* Formulario para notificaciones personalizadas por EMAIL */}
+        <div className="custom-notification-form">
+          <h3>Notificaciones Personalizadas por Email</h3>
+          
+          <div className="form-group">
+            <label>Título de la notificación:</label>
+            <input
+              type="text"
+              value={customNotification.title}
+              onChange={(e) => setCustomNotification(prev => ({
+                ...prev,
+                title: e.target.value
+              }))}
+              placeholder="Ej: Nuevo mensaje importante"
+              disabled={sendingNotification}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Mensaje (opcional):</label>
+            <textarea
+              value={customNotification.message}
+              onChange={(e) => setCustomNotification(prev => ({
+                ...prev,
+                message: e.target.value
+              }))}
+              placeholder="Ej: Tienes un nuevo mensaje de un usuario"
+              rows="3"
+              disabled={sendingNotification}
+            />
+          </div>
+
+          <div className="target-selection">
+            <div className="form-group">
+              <label>Enviar a un usuario específico:</label>
+              <input
+                type="email"
+                value={customNotification.targetEmail}
+                onChange={(e) => setCustomNotification(prev => ({
+                  ...prev,
+                  targetEmail: e.target.value
+                }))}
+                placeholder="usuario@ejemplo.com"
+                disabled={sendingNotification}
+              />
+              <div className="email-help">
+                <small>Ingresa un solo email</small>
+              </div>
+              {customNotification.targetEmail && !customNotification.targetEmail.includes(',') && (
+                <button 
+                  onClick={handleSendToUser}
+                  className="notification-btn user-specific"
+                  disabled={sendingNotification}
+                >
+                  {sendingNotification ? '⏳ Enviando...' : '📨 Enviar a Usuario'}
+                </button>
+              )}
+            </div>
+
+            <div className="form-group">
+              <label>Enviar a múltiples usuarios:</label>
+              <textarea
+                value={customNotification.targetEmail}
+                onChange={(e) => setCustomNotification(prev => ({
+                  ...prev,
+                  targetEmail: e.target.value
+                }))}
+                placeholder="usuario1@ejemplo.com, usuario2@ejemplo.com, usuario3@ejemplo.com"
+                rows="3"
+                disabled={sendingNotification}
+              />
+              <div className="email-help">
+                <small>Separa los emails con comas</small>
+              </div>
+              {customNotification.targetEmail && customNotification.targetEmail.includes(',') && (
+                <div className="selected-users-info">
+                  <p>Se enviará a {customNotification.targetEmail.split(',').filter(e => e.trim()).length} usuarios</p>
+                  <button 
+                    onClick={handleSendToMultipleUsers}
+                    className="notification-btn multiple-users"
+                    disabled={sendingNotification}
+                  >
+                    {sendingNotification ? '⏳ Enviando...' : `📬 Enviar a Múltiples Usuarios`}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {notificationStatus.permission === 'denied' && (

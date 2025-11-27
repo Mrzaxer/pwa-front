@@ -1,275 +1,559 @@
-// services/api.js
 class ApiService {
   constructor() {
-    this.token = localStorage.getItem('token');
-    this.baseUrl = 'https://pwa-back-xmqw.onrender.com/api';
+    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    this.token = localStorage.getItem('authToken');
   }
 
+  // Obtener token de autenticación
+  getToken() {
+    return this.token || localStorage.getItem('authToken');
+  }
+
+  // Establecer token
   setToken(token) {
     this.token = token;
     if (token) {
-      localStorage.setItem('token', token);
+      localStorage.setItem('authToken', token);
     } else {
-      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
     }
   }
 
-  getHeaders() {
-    const headers = {
-      'Content-Type': 'application/json',
-    };
+  // ==================== UTILIDADES ====================
+
+  // Construir URL correctamente
+  buildUrl(endpoint, customBaseUrl = null) {
+    const baseUrl = customBaseUrl || this.baseUrl;
     
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+    // Limpiar la base URL - remover trailing slash
+    let cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    
+    // Limpiar el endpoint - remover leading slash
+    let cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+    
+    // Si la base URL ya contiene /api, no lo dupliques
+    if (cleanBaseUrl.endsWith('/api') && cleanEndpoint.startsWith('api/')) {
+      cleanEndpoint = cleanEndpoint.replace('api/', '');
     }
     
-    return headers;
+    return `${cleanBaseUrl}/${cleanEndpoint}`;
   }
 
-  async request(endpoint, options = {}) {
-    const url = `${this.baseUrl}${endpoint}`;
-    const config = {
-      headers: this.getHeaders(),
-      ...options
-    };
-
-    // Agregar body si existe y es un objeto
-    if (options.body && typeof options.body === 'object') {
-      config.body = JSON.stringify(options.body);
+  // Manejar respuesta HTTP
+  async handleResponse(response) {
+    const data = await response.json().catch(() => ({}));
+    
+    if (!response.ok) {
+      let errorMessage = data.error || data.message || `Error ${response.status}: ${response.statusText}`;
+      
+      // Mensajes más específicos para errores comunes
+      if (response.status === 401) {
+        errorMessage = data.error || data.message || 'Credenciales inválidas. Verifica tu email y contraseña.';
+      } else if (response.status === 404) {
+        errorMessage = data.error || data.message || 'Ruta no encontrada. Verifica la URL del servidor.';
+      } else if (response.status === 500) {
+        errorMessage = data.error || data.message || 'Error interno del servidor.';
+      }
+      
+      const error = new Error(errorMessage);
+      error.status = response.status;
+      error.data = data;
+      throw error;
     }
+    
+    return data;
+  }
 
+  // ==================== AUTENTICACIÓN ====================
+  
+  // Login de usuario
+  async login(email, password, customBaseUrl = null) {
     try {
-      console.log(`🌐 Haciendo petición a: ${url}`);
-      const response = await fetch(url, config);
+      const url = this.buildUrl('auth/login', customBaseUrl);
+      console.log('🔗 URL de login construida:', url);
+      console.log('📧 Email:', email);
       
-      // Si no hay contenido, retornar éxito
-      if (response.status === 204) {
-        return { success: true };
-      }
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password })
+      });
 
-      const data = await response.json();
+      const data = await this.handleResponse(response);
       
-      if (!response.ok) {
-        throw new Error(data.message || data.error || `Error ${response.status}`);
+      if (data.token) {
+        this.setToken(data.token);
+        console.log('✅ Token guardado correctamente');
       }
-
-      return data;
+      
+      return {
+        success: true,
+        user: data.user || data,
+        token: data.token,
+        message: data.message || 'Login exitoso'
+      };
     } catch (error) {
-      console.error(`❌ Error en ${endpoint}:`, error);
+      console.error('❌ Error en login:', error);
       
-      // Si es error de red (offline), lanzar error específico
-      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-        throw new Error('Error de conexión. Verifica tu conexión a internet.');
+      // Retornar estructura consistente incluso en errores
+      return {
+        success: false,
+        error: error.message,
+        status: error.status
+      };
+    }
+  }
+
+  // Registro de usuario
+  async register(username, email, password, customBaseUrl = null) {
+    try {
+      const url = this.buildUrl('auth/register', customBaseUrl);
+      console.log('🔗 URL de registro construida:', url);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, email, password })
+      });
+
+      const data = await this.handleResponse(response);
+      
+      if (data.token) {
+        this.setToken(data.token);
+        console.log('✅ Token guardado correctamente');
       }
       
+      return {
+        success: true,
+        user: data.user || data,
+        token: data.token,
+        message: data.message || 'Registro exitoso'
+      };
+    } catch (error) {
+      console.error('❌ Error en registro:', error);
+      
+      return {
+        success: false,
+        error: error.message,
+        status: error.status
+      };
+    }
+  }
+
+  // Obtener perfil del usuario actual
+  async getProfile(customBaseUrl = null) {
+    try {
+      const url = this.buildUrl('auth/profile', customBaseUrl);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.getToken()}`
+        }
+      });
+
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Error obteniendo perfil:', error);
       throw error;
     }
   }
 
-  // Auth endpoints
-  async login(email, password, customBaseUrl = null) {
-    if (customBaseUrl) {
-      this.baseUrl = customBaseUrl;
-    }
-    
-    const data = await this.request('/auth/login', {
-      method: 'POST',
-      body: { email, password }
-    });
-    
-    if (data.success && data.token) {
-      this.setToken(data.token);
-      // Guardar usuario en localStorage
-      localStorage.setItem('user', JSON.stringify(data.user));
-    }
-    
-    return data;
+  // Cerrar sesión
+  logout() {
+    this.setToken(null);
+    localStorage.removeItem('authToken');
+    console.log('✅ Sesión cerrada');
   }
 
-  async register(username, email, password, customBaseUrl = null) {
-    if (customBaseUrl) {
-      this.baseUrl = customBaseUrl;
-    }
-    
-    const data = await this.request('/auth/register', {
-      method: 'POST',
-      body: { username, email, password }
-    });
-    
-    if (data.success && data.token) {
-      this.setToken(data.token);
-      // Guardar usuario en localStorage
-      localStorage.setItem('user', JSON.stringify(data.user));
-    }
-    
-    return data;
-  }
+  // ==================== USUARIOS ====================
 
-  async getProfile() {
-    return await this.request('/auth/profile');
-  }
-
-  async updateProfile(username) {
-    return await this.request('/auth/profile', {
-      method: 'PUT',
-      body: { username }
-    });
-  }
-
-  async changePassword(currentPassword, newPassword) {
-    return await this.request('/auth/change-password', {
-      method: 'PUT',
-      body: { currentPassword, newPassword }
-    });
-  }
-
-  // Images endpoints
-  async getImages(customBaseUrl = null) {
-    if (customBaseUrl) {
-      this.baseUrl = customBaseUrl;
-    }
-    return await this.request('/images');
-  }
-
-  async getImageById(id) {
-    return await this.request(`/images/${id}`);
-  }
-
-  // Push notifications endpoints - CORREGIDOS
-  async subscribeToPush(subscription, customBaseUrl = null) {
-    if (customBaseUrl) {
-      this.baseUrl = customBaseUrl;
-    }
-    return await this.request('/push/subscribe', {
-      method: 'POST',
-      body: { subscription }
-    });
-  }
-
-  async unsubscribeFromPush(endpoint, customBaseUrl = null) {
-    if (customBaseUrl) {
-      this.baseUrl = customBaseUrl;
-    }
-    return await this.request('/push/subscription', {
-      method: 'DELETE',
-      body: { endpoint }
-    });
-  }
-
-  async sendNotification(title, message = '', icon = '', url = '/', image = null, tag = 'general') {
-    return await this.request('/push/send', {
-      method: 'POST',
-      body: { 
-        title, 
-        message, 
-        icon: icon || '/icons/icon-192x192.png', 
-        url, 
-        image, 
-        tag 
-      }
-    });
-  }
-
-  async sendNotificationToUser(userId, title, message = '', icon = '', url = '/', image = null, tag = 'general') {
-    return await this.request(`/push/send-to-user/${userId}`, {
-      method: 'POST',
-      body: { 
-        title, 
-        message, 
-        icon: icon || '/icons/icon-192x192.png', 
-        url, 
-        image, 
-        tag 
-      }
-    });
-  }
-
-  async getPushStats() {
-    return await this.request('/push/stats');
-  }
-
-  // Posts endpoints
-  async createPost(title, content, customBaseUrl = null) {
-    if (customBaseUrl) {
-      this.baseUrl = customBaseUrl;
-    }
-    return await this.request('/posts', {
-      method: 'POST',
-      body: { title, content }
-    });
-  }
-
-  async getPosts() {
-    return await this.request('/posts');
-  }
-
-  async getPostById(id) {
-    return await this.request(`/posts/${id}`);
-  }
-
-  async updatePost(id, title, content) {
-    return await this.request(`/posts/${id}`, {
-      method: 'PUT',
-      body: { title, content }
-    });
-  }
-
-  async deletePost(id) {
-    return await this.request(`/posts/${id}`, {
-      method: 'DELETE'
-    });
-  }
-
-  // Health check
-  async healthCheck(customBaseUrl = null) {
-    if (customBaseUrl) {
-      this.baseUrl = customBaseUrl;
-    }
-    return await this.request('/health');
-  }
-
-  // Verificar si el backend está disponible
-  async isBackendAvailable(customBaseUrl = null) {
+  // Buscar usuario por email
+  async getUserByEmail(email, customBaseUrl = null) {
     try {
-      await this.healthCheck(customBaseUrl);
-      return true;
+      const url = this.buildUrl(`users/email/${encodeURIComponent(email)}`, customBaseUrl);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.getToken()}`
+        }
+      });
+
+      return await this.handleResponse(response);
     } catch (error) {
+      console.error('❌ Error buscando usuario por email:', error);
+      throw error;
+    }
+  }
+
+  // Buscar múltiples usuarios por emails
+  async getUsersByEmails(emails, customBaseUrl = null) {
+    try {
+      const url = this.buildUrl('users/emails', customBaseUrl);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`
+        },
+        body: JSON.stringify({ emails })
+      });
+
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Error buscando usuarios por emails:', error);
+      throw error;
+    }
+  }
+
+  // ==================== NOTIFICACIONES PUSH ====================
+
+  // Suscribirse a notificaciones push
+  async subscribeToPush(subscription, customBaseUrl = null) {
+    try {
+      const url = this.buildUrl('push/subscribe', customBaseUrl);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`
+        },
+        body: JSON.stringify({ subscription })
+      });
+
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Error suscribiendo a push:', error);
+      throw error;
+    }
+  }
+
+  // Desuscribirse de notificaciones push
+  async unsubscribeFromPush(subscription, customBaseUrl = null) {
+    try {
+      const url = this.buildUrl('push/subscription', customBaseUrl);
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`
+        },
+        body: JSON.stringify({ endpoint: subscription.endpoint })
+      });
+
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Error desuscribiendo de push:', error);
+      throw error;
+    }
+  }
+
+  // Enviar notificación global
+  async sendNotification(title, message, icon, url, customBaseUrl = null) {
+    try {
+      const endpoint = this.buildUrl('push/send', customBaseUrl);
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`
+        },
+        body: JSON.stringify({
+          title,
+          message,
+          icon,
+          url
+        })
+      });
+
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Error enviando notificación global:', error);
+      throw error;
+    }
+  }
+
+  // Enviar notificación a usuario específico
+  async sendNotificationToUser(userId, title, message, icon, url, image, tag, customBaseUrl = null) {
+    try {
+      const endpoint = this.buildUrl(`push/send-to-user/${userId}`, customBaseUrl);
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`
+        },
+        body: JSON.stringify({
+          title,
+          message,
+          icon,
+          url,
+          image,
+          tag
+        })
+      });
+
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Error enviando notificación a usuario:', error);
+      throw error;
+    }
+  }
+
+  // Enviar notificación a usuario por email
+  async sendNotificationToEmail(email, title, message, icon, url, image, tag, customBaseUrl = null) {
+    try {
+      const endpoint = this.buildUrl('push/send-to-email', customBaseUrl);
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`
+        },
+        body: JSON.stringify({
+          email,
+          title,
+          message,
+          icon,
+          url,
+          image,
+          tag
+        })
+      });
+
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Error enviando notificación por email:', error);
+      throw error;
+    }
+  }
+
+  // Enviar notificación a múltiples usuarios
+  async sendNotificationToUsers(userIds, title, message, icon, url, image, tag, customBaseUrl = null) {
+    try {
+      const endpoint = this.buildUrl('push/send-to-users', customBaseUrl);
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`
+        },
+        body: JSON.stringify({
+          userIds,
+          title,
+          message,
+          icon,
+          url,
+          image,
+          tag
+        })
+      });
+
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Error enviando notificación a usuarios:', error);
+      throw error;
+    }
+  }
+
+  // Enviar notificación a múltiples usuarios por emails
+  async sendNotificationToEmails(emails, title, message, icon, url, image, tag, customBaseUrl = null) {
+    try {
+      const endpoint = this.buildUrl('push/send-to-emails', customBaseUrl);
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`
+        },
+        body: JSON.stringify({
+          emails,
+          title,
+          message,
+          icon,
+          url,
+          image,
+          tag
+        })
+      });
+
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Error enviando notificación a emails:', error);
+      throw error;
+    }
+  }
+
+  // Obtener estadísticas de notificaciones
+  async getPushStats(customBaseUrl = null) {
+    try {
+      const endpoint = this.buildUrl('push/stats', customBaseUrl);
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.getToken()}`
+        }
+      });
+
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Error obteniendo estadísticas:', error);
+      throw error;
+    }
+  }
+
+  // ==================== POSTS ====================
+
+  // Obtener todos los posts
+  async getPosts(customBaseUrl = null) {
+    try {
+      const endpoint = this.buildUrl('posts', customBaseUrl);
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.getToken()}`
+        }
+      });
+
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Error obteniendo posts:', error);
+      throw error;
+    }
+  }
+
+  // Crear nuevo post
+  async createPost(postData, customBaseUrl = null) {
+    try {
+      const endpoint = this.buildUrl('posts', customBaseUrl);
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`
+        },
+        body: JSON.stringify(postData)
+      });
+
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Error creando post:', error);
+      throw error;
+    }
+  }
+
+  // Obtener imágenes
+  async getImages(customBaseUrl = null) {
+    try {
+      const endpoint = this.buildUrl('images', customBaseUrl);
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.getToken()}`
+        }
+      });
+
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Error obteniendo imágenes:', error);
+      throw error;
+    }
+  }
+
+  // ==================== NOTIFICACIONES ====================
+
+  // Obtener notificaciones del usuario
+  async getNotifications(customBaseUrl = null) {
+    try {
+      const endpoint = this.buildUrl('notifications', customBaseUrl);
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.getToken()}`
+        }
+      });
+
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Error obteniendo notificaciones:', error);
+      throw error;
+    }
+  }
+
+  // Marcar notificación como leída
+  async markNotificationAsRead(notificationId, customBaseUrl = null) {
+    try {
+      const endpoint = this.buildUrl(`notifications/${notificationId}/read`, customBaseUrl);
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${this.getToken()}`
+        }
+      });
+
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Error marcando notificación como leída:', error);
+      throw error;
+    }
+  }
+
+  // ==================== MÉTODOS DE PRUEBA ====================
+
+  // Método de prueba para notificaciones
+  async tNotification(customBaseUrl = null) {
+    return await this.sendNotification(
+      'Notificación de prueba',
+      'Esta es una notificación de prueba enviada desde la aplicación',
+      '/icons/icon-192x192.png',
+      '/',
+      customBaseUrl
+    );
+  }
+
+  // Verificar conexión con el servidor
+  async healthCheck(customBaseUrl = null) {
+    try {
+      const url = this.buildUrl('health', customBaseUrl);
+      const response = await fetch(url);
+      return response.ok;
+    } catch (error) {
+      console.error('❌ Error en health check:', error);
       return false;
     }
   }
 
-  // Método para cambiar la URL base dinámicamente
-  setBaseUrl(url) {
-    // Asegurarse de que la URL termine con /api si es necesario
-    if (!url.includes('/api') && !url.endsWith('/')) {
-      url += '/api';
-    } else if (!url.includes('/api') && url.endsWith('/')) {
-      url += 'api';
+  // Verificar si el backend está disponible
+  async checkBackendStatus(customBaseUrl = null) {
+    try {
+      const health = await this.healthCheck(customBaseUrl);
+      return {
+        online: health,
+        url: customBaseUrl || this.baseUrl,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      return {
+        online: false,
+        url: customBaseUrl || this.baseUrl,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      };
     }
-    this.baseUrl = url;
   }
 
-  // Método para obtener la URL base actual
-  getBaseUrl() {
-    return this.baseUrl;
-  }
-
-  // Método para limpiar el token (logout)
-  clearToken() {
-    this.token = null;
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-  }
-
-  // Método para verificar si hay un usuario autenticado
-  isAuthenticated() {
-    return !!this.token && !!localStorage.getItem('user');
-  }
-
-  // Método para obtener el usuario actual
-  getCurrentUser() {
-    const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
+  // Método para debug: mostrar información de la URL
+  debugUrl(endpoint, customBaseUrl = null) {
+    const url = this.buildUrl(endpoint, customBaseUrl);
+    console.log('🔍 Debug URL:', {
+      endpoint,
+      customBaseUrl,
+      finalUrl: url
+    });
+    return url;
   }
 }
 
